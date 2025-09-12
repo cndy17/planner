@@ -17,16 +17,19 @@ import {
   Edit2,
   Trash2,
   Copy,
-  Repeat
+  Repeat,
+  GripVertical
 } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
   showProject?: boolean;
   level?: number;
+  dragHandleProps?: any;
+  isDragging?: boolean;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0 }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0, dragHandleProps, isDragging = false }) => {
   const { toggleTaskComplete, updateTask, deleteTask, setEditingTaskId, setIsTaskFormOpen, projects } = useApp();
   const [isExpanded, setIsExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
@@ -54,18 +57,21 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
     }
   };
 
-  const handleEdit = () => {
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setEditingTaskId(task.id);
     setIsTaskFormOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this task?')) {
       deleteTask(task.id);
     }
   };
 
-  const handleDuplicate = () => {
+  const handleDuplicate = (e: React.MouseEvent) => {
+    e.stopPropagation();
     const { id, ...taskWithoutId } = task;
     updateTask(id, { ...taskWithoutId, title: `${task.title} (copy)` });
   };
@@ -73,13 +79,24 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
   return (
     <div className={`group ${level > 0 ? `ml-${level * 6}` : ''}`}>
       <div
-        className={`flex items-start gap-3 p-3 rounded-lg transition-all hover:bg-gray-50 ${getPriorityColor()}`}
+        className={`flex items-start gap-3 p-3 rounded-lg transition-all hover:bg-gray-50 ${getPriorityColor()} ${isDragging ? 'opacity-50' : ''}`}
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
       >
+        {/* Drag Handle */}
+        <div 
+          className="drag-handle opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 flex-shrink-0"
+          {...dragHandleProps}
+        >
+          <GripVertical className="w-4 h-4 text-gray-400 cursor-grab active:cursor-grabbing hover:text-gray-600" />
+        </div>
+
         {/* Checkbox */}
         <button
-          onClick={() => toggleTaskComplete(task.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleTaskComplete(task.id);
+          }}
           className="mt-0.5 flex-shrink-0"
         >
           {task.status === 'completed' ? (
@@ -95,7 +112,10 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
             {/* Expand button for subtasks */}
             {hasSubtasks && (
               <button
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(!isExpanded);
+                }}
                 className="mt-0.5 flex-shrink-0"
               >
                 {isExpanded ? (
@@ -171,7 +191,10 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
               {task.notes && (
                 <div className="mt-2">
                   <button
-                    onClick={() => setShowNotes(!showNotes)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowNotes(!showNotes);
+                    }}
                     className="text-xs text-gray-500 hover:text-gray-700"
                   >
                     {showNotes ? 'Hide notes' : 'Show notes'}

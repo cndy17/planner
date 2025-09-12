@@ -4,6 +4,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -42,18 +43,24 @@ const SortableTask: React.FC<SortableTaskProps> = ({ task, showProject }) => {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const dragHandleProps = {
+    ...attributes,
+    ...listeners,
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className="cursor-move"
     >
-      <TaskCard task={task} showProject={showProject} />
+      <TaskCard 
+        task={task} 
+        showProject={showProject} 
+        dragHandleProps={dragHandleProps}
+        isDragging={isDragging}
+      />
     </div>
   );
 };
@@ -72,6 +79,12 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, showProject = true, onReorde
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -138,10 +151,14 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, showProject = true, onReorde
         </div>
       </SortableContext>
       
-      <DragOverlay>
+      <DragOverlay dropAnimation={null}>
         {activeTask ? (
-          <div className="opacity-90 shadow-lg">
-            <TaskCard task={activeTask} showProject={showProject} />
+          <div className="rotate-2 shadow-2xl border border-primary-200 bg-white rounded-lg">
+            <TaskCard 
+              task={activeTask} 
+              showProject={showProject} 
+              isDragging={true}
+            />
           </div>
         ) : null}
       </DragOverlay>
