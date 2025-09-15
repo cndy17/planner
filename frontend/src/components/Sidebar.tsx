@@ -68,16 +68,6 @@ const Sidebar: React.FC = () => {
   return (
     <>
       <div className="w-64 bg-gray-50 h-full flex flex-col border-r border-gray-200">
-        {/* Quick Entry Button */}
-        <div className="p-4">
-          <button
-            onClick={() => setIsQuickEntryOpen(true)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New To-Do</span>
-          </button>
-        </div>
 
         {/* Views */}
         <div className="px-2 py-2">

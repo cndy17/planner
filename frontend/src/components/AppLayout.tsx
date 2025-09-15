@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Task } from '../types';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import TaskList from './TaskList';
+import TaskListSimple from './TaskListSimple';
 import ProjectView from './ProjectView';
 import AreaView from './AreaView';
 import PlannerView from './PlannerView';
@@ -11,7 +11,7 @@ import CalendarView from './CalendarView';
 import QuickEntryModal from './modals/QuickEntryModal';
 import SearchModal from './modals/SearchModal';
 import TaskFormModal from './modals/TaskFormModal';
-import { Plus, Calendar, ListFilter, LayoutGrid, ArrowRight, Search } from 'lucide-react';
+import { Plus, Calendar, ListFilter, ArrowRight, Search } from 'lucide-react';
 
 const AppLayout: React.FC = () => {
   const {
@@ -21,33 +21,18 @@ const AppLayout: React.FC = () => {
     getTasksByView,
     setIsSearchModalOpen,
     setIsQuickEntryOpen,
-    tasks,
-    updateTask,
     reorderTasks,
   } = useApp();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
-  // Task ordering state
+  // Get tasks for current view and manage them locally
   const viewTasks = getTasksByView(selectedView);
-  const [orderedTasks, setOrderedTasks] = useState(() => 
-    [...viewTasks].sort((a, b) => (a.order || 0) - (b.order || 0))
-  );
-  
-  // Only update when view changes or when tasks are added/removed (not reordered)
-  React.useEffect(() => {
-    const sortedViewTasks = [...viewTasks].sort((a, b) => (a.order || 0) - (b.order || 0));
-    setOrderedTasks(sortedViewTasks);
-  }, [selectedView, selectedProjectId, selectedAreaId, tasks.length]);
 
   const handleReorder = async (reorderedTasks: Task[]) => {
-    // Update local state immediately for instant visual feedback
-    setOrderedTasks(reorderedTasks);
-    
-    // Persist order to backend
-    const taskIds = reorderedTasks.map(task => task.id);
-    await reorderTasks(taskIds);
+    console.log('AppLayout handleReorder called with tasks:', reorderedTasks.map(t => t.title));
+    await reorderTasks(reorderedTasks);
   };
 
   // Keyboard shortcuts
@@ -86,8 +71,9 @@ const AppLayout: React.FC = () => {
     }
 
     // Default Task List View
-    const pendingTasks = orderedTasks.filter(t => t.status === 'pending');
-    const completedTasks = orderedTasks.filter(t => t.status === 'completed');
+    const sortedTasks = [...viewTasks].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const pendingTasks = sortedTasks.filter(t => t.status === 'pending');
+    const completedTasks = sortedTasks.filter(t => t.status === 'completed');
 
     return (
       <div className="flex-1 overflow-y-auto">
@@ -97,7 +83,7 @@ const AppLayout: React.FC = () => {
             <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-3">
               To-Do ({pendingTasks.length})
             </h3>
-            <TaskList 
+            <TaskListSimple 
               tasks={pendingTasks} 
               onReorder={handleReorder}
             />
@@ -110,7 +96,7 @@ const AppLayout: React.FC = () => {
                 Completed ({completedTasks.length})
               </h3>
               <div className="opacity-60">
-                <TaskList 
+                <TaskListSimple 
                   tasks={completedTasks}
                   onReorder={handleReorder}
                 />

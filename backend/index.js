@@ -155,6 +155,7 @@ app.post('/tasks', async (req, res) => {
 
 app.put('/tasks/:id', async (req, res) => {
   try {
+    console.log(`PUT /tasks/${req.params.id}`, req.body);
     const { tags, ...taskData } = req.body;
     const task = await prisma.task.update({
       where: { id: req.params.id },
@@ -166,8 +167,10 @@ app.put('/tasks/:id', async (req, res) => {
       },
       include: { tags: true, project: true, subtasks: true }
     });
+    console.log(`Task updated:`, task.title, 'order:', task.order);
     res.json(task);
   } catch (error) {
+    console.error('Error updating task:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -247,6 +250,60 @@ app.put('/tags/:id', async (req, res) => {
 app.delete('/tags/:id', async (req, res) => {
   try {
     await prisma.tag.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// TaskSection routes
+app.get('/task-sections', async (req, res) => {
+  try {
+    const sections = await prisma.taskSection.findMany({
+      include: { tasks: true, project: true },
+      orderBy: { order: 'asc' }
+    });
+    res.json(sections);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/task-sections', async (req, res) => {
+  try {
+    const section = await prisma.taskSection.create({
+      data: req.body,
+      include: { tasks: true, project: true }
+    });
+    res.json(section);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/task-sections/:id', async (req, res) => {
+  try {
+    const section = await prisma.taskSection.update({
+      where: { id: req.params.id },
+      data: req.body,
+      include: { tasks: true, project: true }
+    });
+    res.json(section);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/task-sections/:id', async (req, res) => {
+  try {
+    // First update tasks to remove their sectionId
+    await prisma.task.updateMany({
+      where: { sectionId: req.params.id },
+      data: { sectionId: null }
+    });
+    
+    // Then delete the section
+    await prisma.taskSection.delete({ where: { id: req.params.id } });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });

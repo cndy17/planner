@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Project } from '../types';
+import { Task } from '../types';
+import SectionedTaskView from './SectionedTaskView';
 import TaskList from './TaskList';
-import { Plus, Calendar, ChevronDown, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { Plus, Calendar, MoreHorizontal, Clock, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface ProjectViewProps {
@@ -10,11 +11,22 @@ interface ProjectViewProps {
 }
 
 const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
-  const { projects, tasks, updateProject, deleteProject, setIsQuickEntryOpen } = useApp();
+  const { projects, tasks, areas, updateProject, deleteProject, updateTask, addTask, reorderTasks, getSectionsByProject } = useApp();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [isEditingProjectName, setIsEditingProjectName] = useState(false);
+  const [editingProjectName, setEditingProjectName] = useState('');
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editingDescription, setEditingDescription] = useState('');
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
+  const [newTaskDueTime, setNewTaskDueTime] = useState('');
+  const [newTaskSectionId, setNewTaskSectionId] = useState('');
+  const [showDateTimePicker, setShowDateTimePicker] = useState(false);
   
   const project = projects.find(p => p.id === projectId);
   const projectTasks = tasks.filter(t => t.projectId === projectId);
+  const area = project?.areaId ? areas.find(a => a.id === project.areaId) : null;
   
   if (!project) {
     return <div className="p-4">Project not found</div>;
@@ -36,15 +48,148 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     setCollapsedSections(newCollapsed);
   };
 
+
+  const startEditingProjectName = () => {
+    setIsEditingProjectName(true);
+    setEditingProjectName(project?.name || '');
+  };
+
+  const saveProjectName = async () => {
+    if (editingProjectName.trim() && project) {
+      await updateProject(project.id, { name: editingProjectName.trim() });
+      setIsEditingProjectName(false);
+      setEditingProjectName('');
+    }
+  };
+
+  const cancelEditingProjectName = () => {
+    setIsEditingProjectName(false);
+    setEditingProjectName('');
+  };
+
+  const startEditingDescription = () => {
+    setIsEditingDescription(true);
+    setEditingDescription(project?.description || '');
+  };
+
+  const saveDescription = async () => {
+    if (project) {
+      await updateProject(project.id, { description: editingDescription.trim() || null });
+      setIsEditingDescription(false);
+      setEditingDescription('');
+    }
+  };
+
+  const cancelEditingDescription = () => {
+    setIsEditingDescription(false);
+    setEditingDescription('');
+  };
+
+  const startAddingTask = () => {
+    setIsAddingTask(true);
+  };
+
+  const saveNewTask = async () => {
+    if (newTaskTitle.trim()) {
+      let dueDate = null;
+      if (newTaskDueDate) {
+        dueDate = new Date(newTaskDueDate);
+        if (newTaskDueTime) {
+          const [hours, minutes] = newTaskDueTime.split(':');
+          dueDate.setHours(parseInt(hours), parseInt(minutes));
+        }
+      }
+
+      await addTask({
+        title: newTaskTitle.trim(),
+        projectId: projectId,
+        sectionId: newTaskSectionId || null,
+        status: 'pending',
+        dueDate: dueDate,
+        notes: undefined,
+        priority: null,
+        flagged: false,
+        tags: [],
+        reminderTime: null,
+        recurrence: null,
+        order: pendingTasks.length,
+        subtasks: []
+      });
+
+      setNewTaskTitle('');
+      setNewTaskDueDate('');
+      setNewTaskDueTime('');
+      setNewTaskSectionId('');
+      setIsAddingTask(false);
+      setShowDateTimePicker(false);
+    }
+  };
+
+  const cancelAddingTask = () => {
+    setNewTaskTitle('');
+    setNewTaskDueDate('');
+    setNewTaskDueTime('');
+    setNewTaskSectionId('');
+    setIsAddingTask(false);
+    setShowDateTimePicker(false);
+  };
+
   return (
     <div className="flex-1 overflow-y-auto">
       {/* Project Header */}
       <div className="bg-white border-b border-gray-200 p-6">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h2 className="text-2xl font-bold text-gray-800">{project.name}</h2>
-            {project.description && (
-              <p className="mt-2 text-gray-600">{project.description}</p>
+            {isEditingProjectName ? (
+              <input
+                type="text"
+                value={editingProjectName}
+                onChange={(e) => setEditingProjectName(e.target.value)}
+                className="text-2xl font-bold text-gray-800 bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded px-1 w-full"
+                autoFocus
+                onBlur={saveProjectName}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    saveProjectName();
+                  } else if (e.key === 'Escape') {
+                    cancelEditingProjectName();
+                  }
+                }}
+              />
+            ) : (
+              <h2 
+                className="text-2xl font-bold text-gray-800 cursor-pointer hover:text-gray-600 transition-colors px-1 rounded hover:bg-gray-100"
+                onDoubleClick={startEditingProjectName}
+              >
+                {project.name}
+              </h2>
+            )}
+            
+            {isEditingDescription ? (
+              <textarea
+                value={editingDescription}
+                onChange={(e) => setEditingDescription(e.target.value)}
+                className="mt-2 text-gray-600 bg-transparent border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full resize-none"
+                rows={2}
+                autoFocus
+                onBlur={saveDescription}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    saveDescription();
+                  } else if (e.key === 'Escape') {
+                    cancelEditingDescription();
+                  }
+                }}
+                placeholder="Add a description..."
+              />
+            ) : (
+              <p 
+                className="mt-2 text-gray-600 cursor-pointer hover:text-gray-800 transition-colors px-1 rounded hover:bg-gray-100 min-h-[1.5rem]"
+                onDoubleClick={startEditingDescription}
+              >
+                {project.description || 'Add a description...'}
+              </p>
             )}
             
             <div className="flex items-center gap-4 mt-4">
@@ -76,64 +221,133 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         </div>
       </div>
 
-      {/* Tasks */}
+      {/* Tasks with Sections */}
       <div className="p-6">
-        {/* Pending Tasks Section */}
-        <div className="mb-6">
-          <button
-            onClick={() => toggleSection('pending')}
-            className="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-800"
-          >
-            {collapsedSections.has('pending') ? (
-              <ChevronRight className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
-            <span>To-Do ({pendingTasks.length})</span>
-          </button>
-          
-          {!collapsedSections.has('pending') && (
-            <TaskList 
-              tasks={pendingTasks} 
-              showProject={false}
-            />
+        <SectionedTaskView projectId={projectId} />
+        
+        {/* Add Task Section */}
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          {isAddingTask ? (
+            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              {/* Task Title Input */}
+              <input
+                type="text"
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                placeholder="Enter task title..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 mb-3"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    saveNewTask();
+                  } else if (e.key === 'Escape') {
+                    cancelAddingTask();
+                  }
+                }}
+              />
+              
+              {/* Date/Time Controls */}
+              <div className="flex items-center gap-2 mb-3">
+                <button
+                  onClick={() => setShowDateTimePicker(!showDateTimePicker)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
+                    showDateTimePicker || newTaskDueDate
+                      ? 'bg-primary-100 text-primary-700'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span className="text-sm">
+                    {newTaskDueDate ? format(new Date(newTaskDueDate), 'MMM d') : 'Due Date'}
+                  </span>
+                </button>
+                
+                {newTaskDueDate && (
+                  <button
+                    onClick={() => {
+                      setNewTaskDueDate('');
+                      setNewTaskDueTime('');
+                      setShowDateTimePicker(false);
+                    }}
+                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                    title="Remove due date"
+                  >
+                    <X className="w-4 h-4 text-gray-500" />
+                  </button>
+                )}
+              </div>
+              
+              {/* Date/Time Picker */}
+              {showDateTimePicker && (
+                <div className="bg-gray-50 p-3 rounded-md mb-3">
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Date</label>
+                      <input
+                        type="date"
+                        value={newTaskDueDate}
+                        onChange={(e) => setNewTaskDueDate(e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Time (optional)</label>
+                      <input
+                        type="time"
+                        value={newTaskDueTime}
+                        onChange={(e) => setNewTaskDueTime(e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Section Selector */}
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Section (optional)</label>
+                <select
+                  value={newTaskSectionId}
+                  onChange={(e) => setNewTaskSectionId(e.target.value)}
+                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                >
+                  <option value="">No Section</option>
+                  {getSectionsByProject(projectId).map(section => (
+                    <option key={section.id} value={section.id}>
+                      {section.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={saveNewTask}
+                  disabled={!newTaskTitle.trim()}
+                  className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                >
+                  Add Task
+                </button>
+                <button
+                  onClick={cancelAddingTask}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={startAddingTask}
+              className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Task</span>
+            </button>
           )}
         </div>
-
-        {/* Completed Tasks Section */}
-        {completedTasks.length > 0 && (
-          <div className="mb-6">
-            <button
-              onClick={() => toggleSection('completed')}
-              className="flex items-center gap-2 mb-3 text-sm font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-800"
-            >
-              {collapsedSections.has('completed') ? (
-                <ChevronRight className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
-              <span>Completed ({completedTasks.length})</span>
-            </button>
-            
-            {!collapsedSections.has('completed') && (
-              <div className="opacity-60">
-                <TaskList 
-                  tasks={completedTasks} 
-                  showProject={false}
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Add Task Button */}
-        <button
-          onClick={() => setIsQuickEntryOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add To-Do</span>
-        </button>
       </div>
     </div>
   );

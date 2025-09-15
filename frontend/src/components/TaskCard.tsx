@@ -25,15 +25,17 @@ interface TaskCardProps {
   task: Task;
   showProject?: boolean;
   level?: number;
-  dragHandleProps?: any;
   isDragging?: boolean;
+  dragHandleProps?: any;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0, dragHandleProps, isDragging = false }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0, isDragging = false, dragHandleProps }) => {
   const { toggleTaskComplete, updateTask, deleteTask, setEditingTaskId, setIsTaskFormOpen, projects } = useApp();
   const [isExpanded, setIsExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitle, setEditingTitle] = useState('');
 
   const project = projects.find(p => p.id === task.projectId);
   const hasSubtasks = task.subtasks && task.subtasks.length > 0;
@@ -76,6 +78,24 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
     updateTask(id, { ...taskWithoutId, title: `${task.title} (copy)` });
   };
 
+  const startEditingTitle = () => {
+    setIsEditingTitle(true);
+    setEditingTitle(task.title);
+  };
+
+  const saveTitle = async () => {
+    if (editingTitle.trim()) {
+      await updateTask(task.id, { title: editingTitle.trim() });
+      setIsEditingTitle(false);
+      setEditingTitle('');
+    }
+  };
+
+  const cancelEditingTitle = () => {
+    setIsEditingTitle(false);
+    setEditingTitle('');
+  };
+
   return (
     <div className={`group ${level > 0 ? `ml-${level * 6}` : ''}`}>
       <div
@@ -83,13 +103,17 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
       >
+
         {/* Drag Handle */}
-        <div 
-          className="drag-handle opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 flex-shrink-0"
-          {...dragHandleProps}
-        >
-          <GripVertical className="w-4 h-4 text-gray-400 cursor-grab active:cursor-grabbing hover:text-gray-600" />
-        </div>
+        {dragHandleProps && (
+          <div
+            {...dragHandleProps}
+            className="mt-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+            title="Drag to reorder"
+          >
+            <GripVertical className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+          </div>
+        )}
 
         {/* Checkbox */}
         <button
@@ -128,13 +152,36 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
 
             <div className="flex-1">
               {/* Title */}
-              <h3
-                className={`font-medium ${
-                  task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-800'
-                }`}
-              >
-                {task.title}
-              </h3>
+              {isEditingTitle ? (
+                <input
+                  type="text"
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  className="font-medium text-gray-800 bg-transparent border border-blue-300 rounded px-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                  autoFocus
+                  onBlur={saveTitle}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      saveTitle();
+                    } else if (e.key === 'Escape') {
+                      cancelEditingTitle();
+                    }
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <h3
+                  className={`font-medium cursor-pointer hover:text-blue-600 transition-colors px-1 rounded hover:bg-gray-100 ${
+                    task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-800'
+                  }`}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    startEditingTitle();
+                  }}
+                >
+                  {task.title}
+                </h3>
+              )}
 
               {/* Metadata */}
               <div className="flex flex-wrap items-center gap-2 mt-1">

@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Task, Project, Area, Tag, ViewType, AppState } from '../types';
+import { Task, Project, Area, Tag, TaskSection, ViewType, AppState } from '../types';
 
 interface AppContextType extends AppState {
   addTask: (task: Omit<Task, 'id'>) => Promise<void>;
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   toggleTaskComplete: (id: string) => Promise<void>;
-  reorderTasks: (taskIds: string[]) => Promise<void>;
+  reorderTasks: (reorderedTasks: Task[]) => Promise<void>;
   
   addProject: (project: Omit<Project, 'id' | 'tasks'>) => Promise<void>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
@@ -20,6 +20,10 @@ interface AppContextType extends AppState {
   updateTag: (id: string, updates: Partial<Tag>) => Promise<void>;
   deleteTag: (id: string) => Promise<void>;
   
+  addTaskSection: (section: Omit<TaskSection, 'id'>) => Promise<void>;
+  updateTaskSection: (id: string, updates: Partial<TaskSection>) => Promise<void>;
+  deleteTaskSection: (id: string) => Promise<void>;
+  
   setSelectedView: (view: ViewType) => void;
   setSelectedProjectId: (id: string | null) => void;
   setSelectedAreaId: (id: string | null) => void;
@@ -29,10 +33,14 @@ interface AppContextType extends AppState {
   setIsSearchModalOpen: (isOpen: boolean) => void;
   setIsTaskFormOpen: (isOpen: boolean) => void;
   setEditingTaskId: (id: string | null) => void;
+  openTaskFormForSection: (projectId: string, sectionId: string) => void;
+  taskFormDefaults: { projectId?: string; sectionId?: string };
   
   getTasksByView: (view: ViewType) => Task[];
   getTasksByProject: (projectId: string) => Task[];
   getTasksByTag: (tagId: string) => Task[];
+  getTasksBySection: (sectionId: string) => Task[];
+  getSectionsByProject: (projectId: string) => TaskSection[];
   getProjectsByArea: (areaId: string) => Project[];
 }
 
@@ -54,6 +62,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     projects: [],
     areas: [],
     tags: [],
+    taskSections: [],
     selectedView: 'today',
     selectedProjectId: null,
     selectedAreaId: null,
@@ -65,22 +74,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     editingTaskId: null,
   });
 
+  // State for pre-populating task form modal
+  const [taskFormDefaults, setTaskFormDefaults] = useState<{
+    projectId?: string;
+    sectionId?: string;
+  }>({});
+
   // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [areasRes, projectsRes, tasksRes, tagsRes] = await Promise.all([
+        const [areasRes, projectsRes, tasksRes, tagsRes, taskSectionsRes] = await Promise.all([
           fetch(`${API_URL}/areas`),
           fetch(`${API_URL}/projects`),
           fetch(`${API_URL}/tasks`),
           fetch(`${API_URL}/tags`),
+          fetch(`${API_URL}/task-sections`),
         ]);
 
-        const [areas, projects, tasks, tags] = await Promise.all([
+        const [areas, projects, tasks, tags, taskSections] = await Promise.all([
           areasRes.json(),
           projectsRes.json(),
           tasksRes.json(),
           tagsRes.json(),
+          taskSectionsRes.json(),
         ]);
 
         setState(prev => ({
@@ -89,6 +106,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           projects,
           tasks,
           tags,
+          taskSections,
         }));
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -157,45 +175,69 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const reorderTasks = async (taskIds: string[]) => {
+  const reorderTasks = async (reorderedTasks: Task[]) => {
     try {
-      // Update local state immediately with new order values
+      console.log('AppContext reorderTasks called with:', reorderedTasks.map(t => t.title));
+      
+      // Update local state immediately for responsive UI
       setState(prev => {
-        const taskMap = new Map(prev.tasks.map(task => [task.id, task]));
-        const reorderedTasks = taskIds.map((id, index) => {
-          const task = taskMap.get(id);
-          return task ? { ...task, order: index + 1 } : null;
-        }).filter(Boolean) as Task[];
-        
-        const otherTasks = prev.tasks
-          .filter(task => !taskIds.includes(task.id))
-          .map(task => ({ ...task, order: task.order })); // Keep existing order for non-reordered tasks
-        
-        return {
-          ...prev,
-          tasks: [...reorderedTasks, ...otherTasks],
-        };
-      });
-
-      // Persist to backend
-      try {
-        const response = await fetch(`${API_URL}/tasks/reorder`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ taskIds }),
+        // Create a map of reordered tasks with new order values
+        const taskOrderMap = new Map();
+        reorderedTasks.forEach((task, index) => {
+          taskOrderMap.set(task.id, (index + 1) * 1000);
         });
         
-        if (!response.ok) {
-          throw new Error(`Backend reorder failed: ${response.statusText}`);
-        }
+        // First, update the order values for the reordered tasks
+        const updatedReorderedTasks = reorderedTasks.map((task, index) => ({
+          ...task,
+          order: (index + 1) * 1000
+        }));
         
-        console.log('Tasks reordered successfully');
-      } catch (backendError) {
-        console.warn('Backend reorder failed, but local state updated:', backendError);
-        // Local state is already updated, so UI will still work
+        // Get the IDs of reordered tasks
+        const reorderedTaskIds = new Set(reorderedTasks.map(t => t.id));
+        
+        // Get all other tasks (not being reordered)
+        const otherTasks = prev.tasks.filter(task => !reorderedTaskIds.has(task.id));
+        
+        // Combine: other tasks + newly ordered tasks
+        const allTasks = [...otherTasks, ...updatedReorderedTasks];
+        
+        console.log('AppContext: Updated local state with reordered tasks');
+        return { ...prev, tasks: allTasks };
+      });
+
+      console.log('AppContext: Starting backend updates...');
+      // Update backend asynchronously
+      for (let i = 0; i < reorderedTasks.length; i++) {
+        const task = reorderedTasks[i];
+        const newOrder = (i + 1) * 1000;
+        
+        console.log(`AppContext: Task "${task.title}" - current order: ${task.order}, new order: ${newOrder}, needs update: ${task.order !== newOrder}`);
+        
+        if (task.order !== newOrder) {
+          try {
+            console.log(`AppContext: Updating "${task.title}" order from ${task.order} to ${newOrder}`);
+            const response = await fetch(`${API_URL}/tasks/${task.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ order: newOrder }),
+            });
+            
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            console.log(`AppContext: Successfully updated "${task.title}"`);
+          } catch (error) {
+            console.error(`AppContext: Failed to update "${task.title}":`, error);
+          }
+        } else {
+          console.log(`AppContext: Skipping "${task.title}" - order unchanged`);
+        }
       }
+      
     } catch (error) {
-      console.error('Failed to reorder tasks:', error);
+      console.error('AppContext: Failed to reorder tasks:', error);
     }
   };
 
@@ -405,6 +447,88 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return state.projects.filter(project => project.areaId === areaId);
   };
 
+  const getTasksBySection = (sectionId: string): Task[] => {
+    return state.tasks.filter(task => task.sectionId === sectionId);
+  };
+
+  const getSectionsByProject = (projectId: string): TaskSection[] => {
+    return state.taskSections.filter(section => section.projectId === projectId);
+  };
+
+  // Task Section operations
+  const addTaskSection = async (section: Omit<TaskSection, 'id'>) => {
+    try {
+      const response = await fetch(`${API_URL}/task-sections`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(section),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create task section');
+      }
+
+      const newSection = await response.json();
+      setState(prev => ({
+        ...prev,
+        taskSections: [...prev.taskSections, newSection],
+      }));
+    } catch (error) {
+      console.error('Failed to add task section:', error);
+    }
+  };
+
+  const updateTaskSection = async (id: string, updates: Partial<TaskSection>) => {
+    try {
+      const response = await fetch(`${API_URL}/task-sections/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update task section');
+      }
+
+      const updatedSection = await response.json();
+      setState(prev => ({
+        ...prev,
+        taskSections: prev.taskSections.map(section =>
+          section.id === id ? updatedSection : section
+        ),
+      }));
+    } catch (error) {
+      console.error('Failed to update task section:', error);
+    }
+  };
+
+  const deleteTaskSection = async (id: string) => {
+    try {
+      const response = await fetch(`${API_URL}/task-sections/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete task section');
+      }
+
+      setState(prev => ({
+        ...prev,
+        taskSections: prev.taskSections.filter(section => section.id !== id),
+        // Move tasks in this section to unsectioned
+        tasks: prev.tasks.map(task =>
+          task.sectionId === id ? { ...task, sectionId: null } : task
+        ),
+      }));
+    } catch (error) {
+      console.error('Failed to delete task section:', error);
+    }
+  };
+
   // UI state setters
   const setSelectedView = (view: ViewType) => setState(prev => ({ ...prev, selectedView: view }));
   const setSelectedProjectId = (id: string | null) => setState(prev => ({ ...prev, selectedProjectId: id }));
@@ -415,6 +539,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const setIsSearchModalOpen = (isOpen: boolean) => setState(prev => ({ ...prev, isSearchModalOpen: isOpen }));
   const setIsTaskFormOpen = (isOpen: boolean) => setState(prev => ({ ...prev, isTaskFormOpen: isOpen }));
   const setEditingTaskId = (id: string | null) => setState(prev => ({ ...prev, editingTaskId: id }));
+
+  const openTaskFormForSection = (projectId: string, sectionId: string) => {
+    setTaskFormDefaults({ projectId, sectionId });
+    setEditingTaskId(null);
+    setIsTaskFormOpen(true);
+  };
 
   const value: AppContextType = {
     ...state,
@@ -432,6 +562,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addTag,
     updateTag,
     deleteTag,
+    addTaskSection,
+    updateTaskSection,
+    deleteTaskSection,
     setSelectedView,
     setSelectedProjectId,
     setSelectedAreaId,
@@ -441,9 +574,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsSearchModalOpen,
     setIsTaskFormOpen,
     setEditingTaskId,
+    openTaskFormForSection,
+    taskFormDefaults,
     getTasksByView,
     getTasksByProject,
     getTasksByTag,
+    getTasksBySection,
+    getSectionsByProject,
     getProjectsByArea,
   };
 

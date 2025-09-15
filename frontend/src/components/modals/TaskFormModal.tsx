@@ -15,6 +15,8 @@ const TaskFormModal: React.FC = () => {
     deleteTask,
     projects,
     tags,
+    getSectionsByProject,
+    taskFormDefaults,
   } = useApp();
 
   const editingTask = tasks.find(t => t.id === editingTaskId);
@@ -25,6 +27,7 @@ const TaskFormModal: React.FC = () => {
   const [reminderTime, setReminderTime] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [projectId, setProjectId] = useState<string>('');
+  const [sectionId, setSectionId] = useState<string>('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | null>(null);
   const [flagged, setFlagged] = useState(false);
@@ -35,24 +38,32 @@ const TaskFormModal: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isTaskFormOpen && editingTask) {
-      setTitle(editingTask.title);
-      setNotes(editingTask.notes || '');
-      setDueDate(editingTask.dueDate ? new Date(editingTask.dueDate).toISOString().split('T')[0] : '');
-      setReminderTime(editingTask.reminderTime ? new Date(editingTask.reminderTime).toISOString().slice(0, 16) : '');
-      setStartDate(editingTask.startDate ? new Date(editingTask.startDate).toISOString().split('T')[0] : '');
-      setProjectId(editingTask.projectId || '');
-      setSelectedTags(editingTask.tags.map(t => t.id));
-      setPriority(editingTask.priority || null);
-      setFlagged(editingTask.flagged);
-      setRecurrence(editingTask.recurrence || '');
-      setSubtasks(editingTask.subtasks?.map(st => ({
-        id: st.id,
-        title: st.title,
-        completed: st.status === 'completed'
-      })) || []);
+    if (isTaskFormOpen) {
+      if (editingTask) {
+        // Editing existing task
+        setTitle(editingTask.title);
+        setNotes(editingTask.notes || '');
+        setDueDate(editingTask.dueDate ? new Date(editingTask.dueDate).toISOString().split('T')[0] : '');
+        setReminderTime(editingTask.reminderTime ? new Date(editingTask.reminderTime).toISOString().slice(0, 16) : '');
+        setStartDate(editingTask.startDate ? new Date(editingTask.startDate).toISOString().split('T')[0] : '');
+        setProjectId(editingTask.projectId || '');
+        setSectionId(editingTask.sectionId || '');
+        setSelectedTags(editingTask.tags.map(t => t.id));
+        setPriority(editingTask.priority || null);
+        setFlagged(editingTask.flagged);
+        setRecurrence(editingTask.recurrence || '');
+        setSubtasks(editingTask.subtasks?.map(st => ({
+          id: st.id,
+          title: st.title,
+          completed: st.status === 'completed'
+        })) || []);
+      } else {
+        // Creating new task - use defaults from context
+        setProjectId(taskFormDefaults.projectId || '');
+        setSectionId(taskFormDefaults.sectionId || '');
+      }
     }
-  }, [isTaskFormOpen, editingTask]);
+  }, [isTaskFormOpen, editingTask, taskFormDefaults]);
 
   useEffect(() => {
     if (isTaskFormOpen && inputRef.current) {
@@ -73,6 +84,7 @@ const TaskFormModal: React.FC = () => {
       priority,
       flagged,
       projectId: projectId || null,
+      sectionId: sectionId || null,
       tags: tags.filter(t => selectedTags.includes(t.id)),
       recurrence: recurrence || null,
     };
@@ -99,6 +111,7 @@ const TaskFormModal: React.FC = () => {
     setReminderTime('');
     setStartDate('');
     setProjectId('');
+    setSectionId('');
     setSelectedTags([]);
     setPriority(null);
     setFlagged(false);
@@ -297,8 +310,8 @@ const TaskFormModal: React.FC = () => {
               </div>
             </div>
 
-            {/* Project and Recurrence */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Project, Section and Recurrence */}
+            <div className="grid grid-cols-3 gap-3">
               {/* Project */}
               <div>
                 <label className="flex items-center gap-2 text-sm text-gray-600 mb-1">
@@ -307,13 +320,37 @@ const TaskFormModal: React.FC = () => {
                 </label>
                 <select
                   value={projectId}
-                  onChange={(e) => setProjectId(e.target.value)}
+                  onChange={(e) => {
+                    setProjectId(e.target.value);
+                    setSectionId(''); // Clear section when project changes
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">No Project</option>
                   {projects.map(project => (
                     <option key={project.id} value={project.id}>
                       {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Section */}
+              <div>
+                <label className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                  <Folder className="w-4 h-4" />
+                  Section
+                </label>
+                <select
+                  value={sectionId}
+                  onChange={(e) => setSectionId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  disabled={!projectId}
+                >
+                  <option value="">No Section</option>
+                  {projectId && getSectionsByProject(projectId).map(section => (
+                    <option key={section.id} value={section.id}>
+                      {section.title}
                     </option>
                   ))}
                 </select>

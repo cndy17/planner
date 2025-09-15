@@ -1,3 +1,12 @@
+export interface TaskSection {
+  id: string;
+  title: string;
+  projectId: string;
+  order: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -10,6 +19,7 @@ export interface Task {
   flagged: boolean;
   parentTaskId?: string | null;
   projectId?: string | null;
+  sectionId?: string | null;
   tags: Tag[];
   subtasks?: Task[];
   recurrence?: string | null;
@@ -68,6 +78,7 @@ export interface AppState {
   projects: Project[];
   areas: Area[];
   tags: Tag[];
+  taskSections: TaskSection[];
   selectedView: ViewType;
   selectedProjectId?: string | null;
   selectedAreaId?: string | null;

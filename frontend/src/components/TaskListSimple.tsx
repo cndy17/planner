@@ -1,15 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
-  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
-  DragStartEvent,
   DragOverlay,
+  DragStartEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -23,7 +22,6 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '../types';
 import TaskCard from './TaskCard';
-import { useApp } from '../context/AppContext';
 
 interface SortableTaskProps {
   task: Task;
@@ -43,9 +41,8 @@ const SortableTask: React.FC<SortableTaskProps> = ({ task, showProject }) => {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0.5 : 1,
   };
-
-  // For testing: apply drag props to entire wrapper instead of handle
 
   return (
     <div
@@ -53,7 +50,7 @@ const SortableTask: React.FC<SortableTaskProps> = ({ task, showProject }) => {
       style={style}
       {...attributes}
       {...listeners}
-      className="cursor-grab active:cursor-grabbing"
+      className={`cursor-grab active:cursor-grabbing ${isDragging ? 'z-50' : ''}`}
     >
       <TaskCard 
         task={task} 
@@ -64,34 +61,31 @@ const SortableTask: React.FC<SortableTaskProps> = ({ task, showProject }) => {
   );
 };
 
-interface TaskListProps {
+interface TaskListSimpleProps {
   tasks: Task[];
   showProject?: boolean;
   onReorder?: (tasks: Task[]) => void;
 }
 
-const TaskList: React.FC<TaskListProps> = ({ tasks, showProject = true, onReorder }) => {
-  const { updateTask } = useApp();
-  const [activeId, setActiveId] = React.useState<string | null>(null);
-  const [localTasks, setLocalTasks] = React.useState(tasks);
+const TaskListSimple: React.FC<TaskListSimpleProps> = ({ 
+  tasks, 
+  showProject = true, 
+  onReorder 
+}) => {
+  const [localTasks, setLocalTasks] = useState(tasks);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
   
-  // Update local tasks only when not dragging
-  React.useEffect(() => {
-    if (!activeId) {
+  // Update local tasks when props change (but not during drag)
+  useEffect(() => {
+    if (!activeTask) {
       setLocalTasks(tasks);
     }
-  }, [tasks, activeId]);
-  
+  }, [tasks, activeTask]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 250,
-        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -100,41 +94,60 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, showProject = true, onReorde
   );
 
   const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    console.log('Drag started:', active.id);
-    setActiveId(active.id as string);
+    console.log('handleDragStart:', event.active.id);
+    const task = localTasks.find(t => t.id === event.active.id);
+    setActiveTask(task || null);
+    console.log('activeTask set to:', task?.title);
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    console.log('Drag ended:', { activeId: active.id, overId: over?.id });
+    
+    console.log('handleDragEnd:', { activeId: active.id, overId: over?.id });
+    setActiveTask(null);
 
-    if (over && active.id !== over.id) {
+    if (over && active.id !== over.id && onReorder) {
       const oldIndex = localTasks.findIndex((t) => t.id === active.id);
       const newIndex = localTasks.findIndex((t) => t.id === over.id);
+      
+      console.log('Drag indexes:', { oldIndex, newIndex });
 
-      console.log('Reordering:', { oldIndex, newIndex });
-      const newTasks = arrayMove(localTasks, oldIndex, newIndex);
-      
-      // Update local state immediately for responsive UI
-      setLocalTasks(newTasks);
-      
-      // Update order in parent component
-      if (onReorder) {
-        console.log('Calling onReorder with new tasks');
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newTasks = arrayMove(localTasks, oldIndex, newIndex);
+        console.log('Calling onReorder with new tasks:', newTasks.map(t => t.title));
+        setLocalTasks(newTasks);
         onReorder(newTasks);
+      } else {
+        console.log('Invalid indexes, not reordering');
       }
+    } else {
+      console.log('Not reordering because:', {
+        hasOver: !!over,
+        sameId: active.id === over?.id,
+        hasOnReorder: !!onReorder
+      });
     }
-
-    setActiveId(null);
   };
 
-  const activeTask = activeId ? localTasks.find(t => t.id === activeId) : null;
-
-  if (localTasks.length === 0) {
+  if (tasks.length === 0) {
     return (
       <div className="text-gray-400 text-sm py-4 text-center">
         No tasks to display
+      </div>
+    );
+  }
+
+  // If no reorder handler, just render tasks without drag and drop
+  if (!onReorder) {
+    return (
+      <div className="space-y-1">
+        {tasks.map((task) => (
+          <TaskCard 
+            key={task.id}
+            task={task} 
+            showProject={showProject} 
+          />
+        ))}
       </div>
     );
   }
@@ -161,12 +174,12 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, showProject = true, onReorde
         </div>
       </SortableContext>
       
-      <DragOverlay dropAnimation={null}>
+      <DragOverlay>
         {activeTask ? (
-          <div className="rotate-2 shadow-2xl border border-primary-200 bg-white rounded-lg">
+          <div className="opacity-90">
             <TaskCard 
               task={activeTask} 
-              showProject={showProject} 
+              showProject={showProject}
               isDragging={true}
             />
           </div>
@@ -176,4 +189,4 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, showProject = true, onReorde
   );
 };
 
-export default TaskList;
+export default TaskListSimple;
