@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -14,7 +13,6 @@ import {
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useApp } from '../context/AppContext';
@@ -25,9 +23,10 @@ import { Plus, MoreHorizontal, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface SectionedTaskViewProps {
   projectId: string;
+  hideCompletedTasks?: boolean;
 }
 
-const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId }) => {
+const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId, hideCompletedTasks = false }) => {
   const { 
     tasks, 
     taskSections, 
@@ -57,13 +56,21 @@ const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId }) => {
   const [isAddingToUnsectioned, setIsAddingToUnsectioned] = useState(false);
 
   const sections = getSectionsByProject(projectId);
-  const unsectionedTasks = tasks.filter(t => t.projectId === projectId && !t.sectionId);
+  const allUnsectionedTasks = tasks.filter(t => t.projectId === projectId && !t.sectionId);
+  const unsectionedTasks = hideCompletedTasks 
+    ? allUnsectionedTasks.filter(task => task.status !== 'completed')
+    : allUnsectionedTasks;
 
   
-  // Create all task items for drag context
+  // Create all task items for drag context (filtered if hiding completed)
   const allTasks = [
     ...unsectionedTasks,
-    ...sections.flatMap(section => getTasksBySection(section.id))
+    ...sections.flatMap(section => {
+      const allSectionTasks = getTasksBySection(section.id);
+      return hideCompletedTasks 
+        ? allSectionTasks.filter(task => task.status !== 'completed')
+        : allSectionTasks;
+    })
   ];
 
   const sensors = useSensors(
@@ -77,9 +84,6 @@ const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId }) => {
         delay: 250,
         tolerance: 8,
       },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 
@@ -217,7 +221,10 @@ const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId }) => {
   };
 
   const renderSection = (section: TaskSection) => {
-    const sectionTasks = getTasksBySection(section.id);
+    const allSectionTasks = getTasksBySection(section.id);
+    const sectionTasks = hideCompletedTasks 
+      ? allSectionTasks.filter(task => task.status !== 'completed')
+      : allSectionTasks;
     const isCollapsed = collapsedSections.has(section.id);
     
     return (

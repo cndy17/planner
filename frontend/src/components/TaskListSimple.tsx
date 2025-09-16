@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -13,7 +12,6 @@ import {
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import {
@@ -87,10 +85,8 @@ const TaskListSimple: React.FC<TaskListSimpleProps> = ({
       activationConstraint: {
         distance: 8,
       },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
     })
+    // Removed KeyboardSensor to prevent space bar conflicts with input fields
   );
 
   const handleDragStart = (event: DragStartEvent) => {

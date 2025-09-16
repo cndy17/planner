@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   Calendar, 
@@ -11,11 +11,155 @@ import {
   ChevronDown,
   ChevronRight,
   Circle,
-  Edit2
+  Edit2,
+  CalendarCheck,
+  Settings,
+  Trash2
 } from 'lucide-react';
 import { ViewType, Area, Project } from '../types';
 import AreaModal from './modals/AreaModal';
 import ProjectModal from './modals/ProjectModal';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import {
+  CSS,
+} from '@dnd-kit/utilities';
+
+interface SortableProjectProps {
+  project: Project;
+  isSelected: boolean;
+  isEditing: boolean;
+  editingName: string;
+  taskCount: number;
+  isHovered: boolean;
+  onClick: () => void;
+  onDoubleClick: () => void;
+  onEditingNameChange: (name: string) => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+  onEditProject: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}
+
+const SortableProject: React.FC<SortableProjectProps> = ({
+  project,
+  isSelected,
+  isEditing,
+  editingName,
+  taskCount,
+  isHovered,
+  onClick,
+  onDoubleClick,
+  onEditingNameChange,
+  onSaveEdit,
+  onCancelEdit,
+  onEditProject,
+  onContextMenu,
+  onMouseEnter,
+  onMouseLeave,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: project.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`group flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+        isSelected
+          ? 'bg-primary-100 text-primary-700'
+          : 'hover:bg-gray-100'
+      } ${isDragging ? 'shadow-lg ring-2 ring-primary-200' : ''}`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className="flex-1 flex items-center gap-2 text-left">
+        <button
+          onClick={onClick}
+          className="flex items-center gap-2 text-left flex-1"
+        >
+        <Folder className="w-3 h-3" />
+        {isEditing ? (
+          <input
+            type="text"
+            value={editingName}
+            onChange={(e) => onEditingNameChange(e.target.value)}
+            onBlur={onSaveEdit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                onSaveEdit();
+              } else if (e.key === 'Escape') {
+                onCancelEdit();
+              }
+            }}
+            className="text-sm bg-transparent border border-primary-300 rounded px-1 py-0.5 min-w-0 flex-1"
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span 
+            className="text-sm cursor-pointer truncate"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onDoubleClick();
+            }}
+            onContextMenu={onContextMenu}
+            title={project.name}
+          >
+            {project.name}
+          </span>
+        )}
+        </button>
+      </div>
+      <div className="flex items-center gap-1">
+        {taskCount > 0 && (
+          <span className="text-xs text-gray-500">{taskCount}</span>
+        )}
+        {isHovered && (
+          <button
+            onClick={onEditProject}
+            className="p-1 hover:bg-gray-200 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Edit Project"
+          >
+            <Edit2 className="w-3 h-3 text-gray-500" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const Sidebar: React.FC = () => {
   const {
@@ -33,7 +177,11 @@ const Sidebar: React.FC = () => {
     getTasksByProject,
     getProjectsByArea,
     deleteArea,
-    deleteProject
+    deleteProject,
+    addArea,
+    updateArea,
+    updateProject,
+    reorderProjects
   } = useApp();
 
   const [expandedAreas, setExpandedAreas] = useState<Set<string>>(new Set());
@@ -46,6 +194,39 @@ const Sidebar: React.FC = () => {
   const [selectedAreaForProject, setSelectedAreaForProject] = useState<string | null>(null);
   const [hoveredAreaId, setHoveredAreaId] = useState<string | null>(null);
   const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  
+  // Inline editing states
+  const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editingAreaName, setEditingAreaName] = useState('');
+  const [editingProjectName, setEditingProjectName] = useState('');
+  
+  // Context menu states
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    type: 'area' | 'project';
+    id: string;
+  } | null>(null);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 200, // 200ms delay before drag starts
+        tolerance: 8, // 8px of movement tolerance during delay
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle adding new area
+  const handleAddArea = () => {
+    setIsAreaModalOpen(true);
+  };
 
   const toggleArea = (areaId: string) => {
     const newExpanded = new Set(expandedAreas);
@@ -57,12 +238,154 @@ const Sidebar: React.FC = () => {
     setExpandedAreas(newExpanded);
   };
 
+  // Drag handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveProjectId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      const activeProject = projects.find(p => p.id === active.id);
+      const overProject = projects.find(p => p.id === over?.id);
+      
+      if (activeProject && overProject && activeProject.areaId === overProject.areaId) {
+        // Only reorder projects within the same area
+        const areaProjects = projects
+          .filter(p => p.areaId === activeProject.areaId)
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
+        
+        const oldIndex = areaProjects.findIndex(project => project.id === active.id);
+        const newIndex = areaProjects.findIndex(project => project.id === over?.id);
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const reorderedProjects = arrayMove(areaProjects, oldIndex, newIndex);
+          reorderProjects(reorderedProjects);
+        }
+      }
+    }
+    
+    setActiveProjectId(null);
+  };
+
+  // Inline editing functions
+  const startEditingArea = (area: Area) => {
+    setEditingAreaId(area.id);
+    setEditingAreaName(area.name);
+    setContextMenu(null);
+  };
+
+  const startEditingProject = (project: Project) => {
+    setEditingProjectId(project.id);
+    setEditingProjectName(project.name);
+    setContextMenu(null);
+  };
+
+  const saveAreaName = async () => {
+    if (editingAreaId && editingAreaName.trim()) {
+      await updateArea(editingAreaId, { name: editingAreaName.trim() });
+    }
+    setEditingAreaId(null);
+    setEditingAreaName('');
+  };
+
+  const saveProjectName = async () => {
+    if (editingProjectId && editingProjectName.trim()) {
+      await updateProject(editingProjectId, { name: editingProjectName.trim() });
+    }
+    setEditingProjectId(null);
+    setEditingProjectName('');
+  };
+
+  const cancelEditing = () => {
+    setEditingAreaId(null);
+    setEditingProjectId(null);
+    setEditingAreaName('');
+    setEditingProjectName('');
+  };
+
+  // Context menu functions
+  const handleContextMenu = (e: React.MouseEvent, type: 'area' | 'project', id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      type,
+      id
+    });
+  };
+
+  const handleContextAction = (action: string) => {
+    if (!contextMenu) return;
+
+    const { type, id } = contextMenu;
+    
+    if (type === 'area') {
+      const area = areas.find(a => a.id === id);
+      if (!area) return;
+      
+      switch (action) {
+        case 'rename':
+          startEditingArea(area);
+          break;
+        case 'edit':
+          setEditingArea(area);
+          setIsAreaModalOpen(true);
+          break;
+        case 'delete':
+          if (window.confirm(`Are you sure you want to delete the area "${area.name}"? This will also delete all projects and tasks in this area.`)) {
+            deleteArea(area.id);
+          }
+          break;
+      }
+    } else if (type === 'project') {
+      const project = projects.find(p => p.id === id);
+      if (!project) return;
+      
+      switch (action) {
+        case 'rename':
+          startEditingProject(project);
+          break;
+        case 'edit':
+          setEditingProject(project);
+          setIsProjectModalOpen(true);
+          break;
+        case 'delete':
+          if (window.confirm(`Are you sure you want to delete the project "${project.name}"? This will also delete all tasks in this project.`)) {
+            deleteProject(project.id);
+          }
+          break;
+      }
+    }
+    
+    setContextMenu(null);
+  };
+
+  // Click outside handlers
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      setContextMenu(null);
+      if (editingAreaId || editingProjectId) {
+        const target = e.target as HTMLElement;
+        if (!target.closest('input')) {
+          cancelEditing();
+        }
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [editingAreaId, editingProjectId]);
+
   const viewItems: { view: ViewType; icon: React.ReactNode; label: string }[] = [
     { view: 'today', icon: <Calendar className="w-4 h-4" />, label: 'Today' },
     { view: 'upcoming', icon: <CalendarDays className="w-4 h-4" />, label: 'Upcoming' },
     { view: 'anytime', icon: <Clock className="w-4 h-4" />, label: 'Anytime' },
     { view: 'someday', icon: <Archive className="w-4 h-4" />, label: 'Someday' },
     { view: 'logbook', icon: <Archive className="w-4 h-4" />, label: 'Logbook' },
+    { view: 'calendar', icon: <CalendarCheck className="w-4 h-4" />, label: 'Calendar' },
   ];
 
   return (
@@ -173,7 +496,35 @@ const Sidebar: React.FC = () => {
                         >
                           {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                           <Circle className="w-3 h-3" style={{ color: area.color }} fill={area.color} />
-                          <span className="text-sm font-medium">{area.name}</span>
+                          {editingAreaId === area.id ? (
+                            <input
+                              type="text"
+                              value={editingAreaName}
+                              onChange={(e) => setEditingAreaName(e.target.value)}
+                              onBlur={saveAreaName}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  saveAreaName();
+                                } else if (e.key === 'Escape') {
+                                  cancelEditing();
+                                }
+                              }}
+                              className="text-sm font-medium bg-transparent border border-primary-300 rounded px-1 py-0.5 min-w-0 flex-1"
+                              autoFocus
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          ) : (
+                            <span 
+                              className="text-sm font-medium cursor-pointer"
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                startEditingArea(area);
+                              }}
+                              onContextMenu={(e) => handleContextMenu(e, 'area', area.id)}
+                            >
+                              {area.name}
+                            </span>
+                          )}
                         </button>
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-gray-500 mr-1">{areaProjects.length}</span>
@@ -200,6 +551,18 @@ const Sidebar: React.FC = () => {
                               >
                                 <Edit2 className="w-3 h-3 text-gray-500" />
                               </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm(`Are you sure you want to delete the area "${area.name}"? This will also delete all projects and tasks in this area.`)) {
+                                    deleteArea(area.id);
+                                  }
+                                }}
+                                className="p-1 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Delete Area"
+                              >
+                                <Trash2 className="w-3 h-3 text-red-500" />
+                              </button>
                             </>
                           )}
                         </div>
@@ -207,50 +570,57 @@ const Sidebar: React.FC = () => {
                       
                       {isExpanded && (
                         <div className="ml-6">
-                          {areaProjects.map(project => {
-                            const taskCount = getTasksByProject(project.id).length;
-                            return (
-                              <div
-                                key={project.id}
-                                className={`group flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
-                                  selectedProjectId === project.id
-                                    ? 'bg-primary-100 text-primary-700'
-                                    : 'hover:bg-gray-100'
-                                }`}
-                                onMouseEnter={() => setHoveredProjectId(project.id)}
-                                onMouseLeave={() => setHoveredProjectId(null)}
-                              >
-                                <button
-                                  onClick={() => {
-                                    setSelectedProjectId(project.id);
-                                    setSelectedAreaId(null);
-                                    setSelectedView('anytime');
-                                  }}
-                                  className="flex-1 flex items-center gap-2 text-left"
-                                >
-                                  <Folder className="w-3 h-3" />
-                                  <span className="text-sm">{project.name}</span>
-                                </button>
-                                <div className="flex items-center gap-1">
-                                  {taskCount > 0 && (
-                                    <span className="text-xs text-gray-500">{taskCount}</span>
-                                  )}
-                                  {hoveredProjectId === project.id && (
-                                    <button
-                                      onClick={() => {
-                                        setEditingProject(project);
-                                        setIsProjectModalOpen(true);
-                                      }}
-                                      className="p-1 hover:bg-gray-200 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                      title="Edit Project"
-                                    >
-                                      <Edit2 className="w-3 h-3 text-gray-500" />
-                                    </button>
-                                  )}
+                          <DndContext 
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragStart={handleDragStart}
+                            onDragEnd={handleDragEnd}
+                          >
+                            <SortableContext items={areaProjects.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                              {areaProjects.map(project => {
+                                const taskCount = getTasksByProject(project.id).length;
+                                return (
+                                  <SortableProject
+                                    key={project.id}
+                                    project={project}
+                                    isSelected={selectedProjectId === project.id}
+                                    isEditing={editingProjectId === project.id}
+                                    editingName={editingProjectName}
+                                    taskCount={taskCount}
+                                    isHovered={hoveredProjectId === project.id}
+                                    onClick={() => {
+                                      setSelectedProjectId(project.id);
+                                      setSelectedAreaId(null);
+                                      setSelectedView('anytime');
+                                    }}
+                                    onDoubleClick={() => startEditingProject(project)}
+                                    onEditingNameChange={setEditingProjectName}
+                                    onSaveEdit={saveProjectName}
+                                    onCancelEdit={cancelEditing}
+                                    onEditProject={() => {
+                                      setEditingProject(project);
+                                      setIsProjectModalOpen(true);
+                                    }}
+                                    onContextMenu={(e) => handleContextMenu(e, 'project', project.id)}
+                                    onMouseEnter={() => setHoveredProjectId(project.id)}
+                                    onMouseLeave={() => setHoveredProjectId(null)}
+                                  />
+                                );
+                              })}
+                            </SortableContext>
+                            
+                            <DragOverlay>
+                              {activeProjectId ? (
+                                <div className="transform rotate-1 shadow-xl ring-2 ring-primary-300 bg-white rounded-lg">
+                                  <div className="flex items-center gap-2 px-3 py-2">
+                                    <Folder className="w-3 h-3" />
+                                    <span className="text-sm">{projects.find(p => p.id === activeProjectId)?.name}</span>
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              ) : null}
+                            </DragOverlay>
+                          </DndContext>
+                          
                           {areaProjects.length === 0 && (
                             <div className="px-3 py-2 text-xs text-gray-400">
                               No projects yet
@@ -290,6 +660,27 @@ const Sidebar: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Bottom Actions */}
+        <div className="border-t border-gray-200 p-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleAddArea}
+              className="flex-1 flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Add Area"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Area</span>
+            </button>
+            
+            <button
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Filter & Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Modals */}
@@ -311,6 +702,37 @@ const Sidebar: React.FC = () => {
         editingProject={editingProject}
         defaultAreaId={selectedAreaForProject}
       />
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 min-w-[120px]"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+          }}
+        >
+          <button
+            onClick={() => handleContextAction('rename')}
+            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors"
+          >
+            Rename
+          </button>
+          <button
+            onClick={() => handleContextAction('edit')}
+            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors"
+          >
+            Edit
+          </button>
+          <div className="border-t border-gray-100 my-1"></div>
+          <button
+            onClick={() => handleContextAction('delete')}
+            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </>
   );
 };

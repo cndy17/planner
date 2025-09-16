@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Area } from '../../types';
-import { X, Circle } from 'lucide-react';
+import { X, Circle, Trash2 } from 'lucide-react';
 
 interface AreaModalProps {
   isOpen: boolean;
@@ -10,7 +10,7 @@ interface AreaModalProps {
 }
 
 const AreaModal: React.FC<AreaModalProps> = ({ isOpen, onClose, editingArea }) => {
-  const { addArea, updateArea } = useApp();
+  const { addArea, updateArea, deleteArea } = useApp();
   const [name, setName] = useState('');
   const [color, setColor] = useState('#3b82f6');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -55,6 +55,13 @@ const AreaModal: React.FC<AreaModalProps> = ({ isOpen, onClose, editingArea }) =
     }
 
     onClose();
+  };
+
+  const handleDelete = async () => {
+    if (editingArea && window.confirm(`Are you sure you want to delete the area "${editingArea.name}"? This will also delete all projects and tasks in this area.`)) {
+      await deleteArea(editingArea.id);
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
@@ -129,20 +136,32 @@ const AreaModal: React.FC<AreaModalProps> = ({ isOpen, onClose, editingArea }) =
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-2 p-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-            >
-              {editingArea ? 'Save Changes' : 'Create Area'}
-            </button>
+          <div className="flex justify-between p-4 border-t border-gray-200">
+            {editingArea && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Area
+              </button>
+            )}
+            <div className={`flex gap-2 ${editingArea ? '' : 'ml-auto'}`}>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+              >
+                {editingArea ? 'Save Changes' : 'Create Area'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

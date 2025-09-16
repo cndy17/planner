@@ -9,7 +9,12 @@ import {
   X,
   CheckCircle2,
   Circle,
-  Flag
+  Flag,
+  ChevronDown,
+  ChevronRight as ChevronRightCollapse,
+  Folder,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import {
   format,
@@ -33,12 +38,14 @@ import {
 type ViewType = 'day' | 'week' | 'month';
 
 interface CalendarViewProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  isModal?: boolean;
+  hideCompletedTasks?: boolean;
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ isOpen, onClose }) => {
-  const { tasks, projects, areas, toggleTaskComplete, setEditingTaskId, setIsTaskFormOpen } = useApp();
+const CalendarView: React.FC<CalendarViewProps> = ({ isOpen = true, onClose, isModal = false, hideCompletedTasks = false }) => {
+  const { tasks, projects, areas, toggleTaskComplete, setEditingTaskId, setIsTaskFormOpen, getProjectsByArea } = useApp();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewType, setViewType] = useState<ViewType>('month');
   const [selectedFilters, setSelectedFilters] = useState({
@@ -47,7 +54,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isOpen, onClose }) => {
     areaIds: [] as string[],
     priority: [] as string[],
   });
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
+  const [collapsedAreas, setCollapsedAreas] = useState<Set<string>>(new Set());
 
   // Filter tasks based on selected filters
   const filteredTasks = useMemo(() => {
@@ -112,13 +120,23 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isOpen, onClose }) => {
     setCurrentDate(new Date());
   };
 
+  const toggleAreaCollapse = (areaId: string) => {
+    const newCollapsed = new Set(collapsedAreas);
+    if (newCollapsed.has(areaId)) {
+      newCollapsed.delete(areaId);
+    } else {
+      newCollapsed.add(areaId);
+    }
+    setCollapsedAreas(newCollapsed);
+  };
+
   // Render day view
   const renderDayView = () => {
     const dayTasks = getTasksForDate(currentDate);
     const hours = Array.from({ length: 24 }, (_, i) => i);
 
     return (
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="p-4">
           <h3 className="text-lg font-semibold mb-4">
             {format(currentDate, 'EEEE, MMMM d, yyyy')}
@@ -155,7 +173,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isOpen, onClose }) => {
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
     return (
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="p-4">
           <h3 className="text-lg font-semibold mb-4">
             Week of {format(weekStart, 'MMMM d, yyyy')}
@@ -209,7 +227,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isOpen, onClose }) => {
     }
 
     return (
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="p-4">
           <h3 className="text-lg font-semibold mb-4">
             {format(currentDate, 'MMMM yyyy')}
@@ -338,11 +356,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isOpen, onClose }) => {
     );
   };
 
-  if (!isOpen) return null;
+  if (isModal && !isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-6xl h-[80vh] flex flex-col">
+  const calendarContent = (
+    <div className={isModal 
+      ? "bg-white rounded-xl shadow-xl w-full max-w-6xl h-[80vh] flex flex-col"
+      : "flex-1 flex flex-col h-full overflow-hidden"
+    }>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center gap-4">
@@ -368,13 +388,23 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isOpen, onClose }) => {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Filter button */}
+            {/* Hide/Show Filters button */}
             <button
-              onClick={() => setShowFilterMenu(!showFilterMenu)}
+              onClick={() => setShowFilters(!showFilters)}
               className="flex items-center gap-2 px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              title={showFilters ? "Hide Filters" : "Show Filters"}
             >
-              <Filter className="w-4 h-4" />
-              <span className="text-sm">Filter</span>
+              {showFilters ? (
+                <>
+                  <PanelLeftClose className="w-4 h-4" />
+                  <span className="text-sm">Hide Filters</span>
+                </>
+              ) : (
+                <>
+                  <PanelLeftOpen className="w-4 h-4" />
+                  <span className="text-sm">Show Filters</span>
+                </>
+              )}
             </button>
 
             {/* Navigation */}
@@ -399,69 +429,229 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isOpen, onClose }) => {
               </button>
             </div>
 
-            <button
-              onClick={onClose}
-              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
+            {isModal && onClose && (
+              <button
+                onClick={onClose}
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Filter menu */}
-        {showFilterMenu && (
-          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-            <div className="flex flex-wrap gap-4">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedFilters.showCompleted}
-                  onChange={(e) => setSelectedFilters(prev => ({
-                    ...prev,
-                    showCompleted: e.target.checked
-                  }))}
-                  className="rounded"
-                />
-                <span className="text-sm">Show completed</span>
-              </label>
+        {/* Main Content Area with Sidebar Layout */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Filter Sidebar */}
+          {showFilters && (
+            <div className="w-80 border-r border-gray-200 bg-gray-50 overflow-y-auto">
+              <div className="p-4 space-y-6">
+              
+              {/* General Filters */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-gray-700">General</h4>
+                
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedFilters.showCompleted}
+                    onChange={(e) => setSelectedFilters(prev => ({
+                      ...prev,
+                      showCompleted: e.target.checked
+                    }))}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Show completed</span>
+                </label>
 
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Priority:</span>
-                {['high', 'medium', 'low'].map(priority => (
-                  <label key={priority} className="flex items-center gap-1">
-                    <input
-                      type="checkbox"
-                      checked={selectedFilters.priority.includes(priority)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedFilters(prev => ({
-                            ...prev,
-                            priority: [...prev.priority, priority]
-                          }));
-                        } else {
-                          setSelectedFilters(prev => ({
-                            ...prev,
-                            priority: prev.priority.filter(p => p !== priority)
-                          }));
-                        }
-                      }}
-                      className="rounded"
-                    />
-                    <span className="text-sm capitalize">{priority}</span>
-                  </label>
-                ))}
+                <div className="space-y-2">
+                  <span className="text-sm text-gray-600">Priority:</span>
+                  {['high', 'medium', 'low'].map(priority => (
+                    <label key={priority} className="flex items-center gap-2 ml-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedFilters.priority.includes(priority)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedFilters(prev => ({
+                              ...prev,
+                              priority: [...prev.priority, priority]
+                            }));
+                          } else {
+                            setSelectedFilters(prev => ({
+                              ...prev,
+                              priority: prev.priority.filter(p => p !== priority)
+                            }));
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-sm capitalize">{priority}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Areas & Projects */}
+              <div className="lg:col-span-2 space-y-3">
+                <h4 className="text-sm font-medium text-gray-700">Areas & Projects</h4>
+                
+                <div className="space-y-2">
+                  {areas.map(area => {
+                    const areaProjects = projects.filter(p => p.areaId === area.id);
+                    const isCollapsed = collapsedAreas.has(area.id);
+                    const isAreaSelected = selectedFilters.areaIds.includes(area.id);
+                    
+                    return (
+                      <div key={area.id} className="space-y-1">
+                        {/* Area header */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleAreaCollapse(area.id)}
+                            className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900"
+                          >
+                            {isCollapsed ? (
+                              <ChevronRightCollapse className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                            <div 
+                              className="w-3 h-3 rounded-full mr-1" 
+                              style={{ backgroundColor: area.color }}
+                            />
+                            {area.name}
+                          </button>
+                          
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={isAreaSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedFilters(prev => ({
+                                    ...prev,
+                                    areaIds: [...prev.areaIds, area.id]
+                                  }));
+                                } else {
+                                  setSelectedFilters(prev => ({
+                                    ...prev,
+                                    areaIds: prev.areaIds.filter(id => id !== area.id),
+                                    projectIds: prev.projectIds.filter(id => 
+                                      !areaProjects.some(p => p.id === id)
+                                    )
+                                  }));
+                                }
+                              }}
+                              className="rounded text-xs"
+                            />
+                            <span className="text-xs text-gray-500">All</span>
+                          </label>
+                        </div>
+
+                        {/* Projects under area */}
+                        {!isCollapsed && areaProjects.length > 0 && (
+                          <div className="ml-6 space-y-1">
+                            {areaProjects.map(project => (
+                              <label key={project.id} className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedFilters.projectIds.includes(project.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedFilters(prev => ({
+                                        ...prev,
+                                        projectIds: [...prev.projectIds, project.id]
+                                      }));
+                                    } else {
+                                      setSelectedFilters(prev => ({
+                                        ...prev,
+                                        projectIds: prev.projectIds.filter(id => id !== project.id)
+                                      }));
+                                    }
+                                  }}
+                                  className="rounded"
+                                />
+                                <span className="text-sm">{project.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Projects without areas */}
+                  {projects.filter(p => !p.areaId).length > 0 && (
+                    <div className="space-y-1 pt-2 border-t border-gray-200">
+                      <div className="text-sm font-medium text-gray-700 mb-2">Other Projects</div>
+                      {projects.filter(p => !p.areaId).map(project => (
+                        <label key={project.id} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedFilters.projectIds.includes(project.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedFilters(prev => ({
+                                  ...prev,
+                                  projectIds: [...prev.projectIds, project.id]
+                                }));
+                              } else {
+                                setSelectedFilters(prev => ({
+                                  ...prev,
+                                  projectIds: prev.projectIds.filter(id => id !== project.id)
+                                }));
+                              }
+                            }}
+                            className="rounded"
+                          />
+                          <span className="text-sm">{project.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+                {/* Clear filters button */}
+                <div className="pt-3 border-t border-gray-200">
+                  <button
+                    onClick={() => {
+                      setSelectedFilters({
+                        showCompleted: true,
+                        projectIds: [],
+                        areaIds: [],
+                        priority: [],
+                      });
+                      setCollapsedAreas(new Set());
+                    }}
+                    className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                  >
+                    Clear all filters
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Calendar content */}
-        {viewType === 'day' && renderDayView()}
-        {viewType === 'week' && renderWeekView()}
-        {viewType === 'month' && renderMonthView()}
-      </div>
+          {/* Calendar content */}
+          <div className="flex-1 overflow-hidden">
+            {viewType === 'day' && renderDayView()}
+            {viewType === 'week' && renderWeekView()}
+            {viewType === 'month' && renderMonthView()}
+          </div>
+        </div>
     </div>
   );
+
+  if (isModal) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        {calendarContent}
+      </div>
+    );
+  }
+
+  return calendarContent;
 };
 
 export default CalendarView;

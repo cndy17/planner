@@ -28,13 +28,14 @@ const DraggableTaskItem: React.FC<DraggableTaskItemProps> = ({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const dragHandleProps = {
-    ...attributes,
-    ...listeners,
-  };
-
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div 
+      ref={setNodeRef} 
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="cursor-grab active:cursor-grabbing"
+    >
       <TaskCard 
         task={task} 
         showProject={showProject}

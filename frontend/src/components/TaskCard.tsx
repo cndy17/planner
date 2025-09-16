@@ -17,8 +17,7 @@ import {
   Edit2,
   Trash2,
   Copy,
-  Repeat,
-  GripVertical
+  Repeat
 } from 'lucide-react';
 
 interface TaskCardProps {
@@ -26,10 +25,9 @@ interface TaskCardProps {
   showProject?: boolean;
   level?: number;
   isDragging?: boolean;
-  dragHandleProps?: any;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0, isDragging = false, dragHandleProps }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0, isDragging = false }) => {
   const { toggleTaskComplete, updateTask, deleteTask, setEditingTaskId, setIsTaskFormOpen, projects } = useApp();
   const [isExpanded, setIsExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
@@ -103,17 +101,6 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
       >
-
-        {/* Drag Handle */}
-        {dragHandleProps && (
-          <div
-            {...dragHandleProps}
-            className="mt-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
-            title="Drag to reorder"
-          >
-            <GripVertical className="w-4 h-4 text-gray-400 hover:text-gray-600" />
-          </div>
-        )}
 
         {/* Checkbox */}
         <button

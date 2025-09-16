@@ -2,7 +2,6 @@ import React from 'react';
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
   PointerSensor,
   TouchSensor,
   useSensor,
@@ -14,7 +13,6 @@ import {
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import {
@@ -44,8 +42,6 @@ const SortableTask: React.FC<SortableTaskProps> = ({ task, showProject }) => {
     transform: CSS.Transform.toString(transform),
     transition,
   };
-
-  // For testing: apply drag props to entire wrapper instead of handle
 
   return (
     <div
@@ -93,10 +89,8 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, showProject = true, onReorde
         delay: 250,
         tolerance: 8,
       },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
     })
+    // Removed KeyboardSensor to prevent space bar conflicts with input fields
   );
 
   const handleDragStart = (event: DragStartEvent) => {

@@ -5,9 +5,12 @@ import { Search, Plus, Menu, X } from 'lucide-react';
 interface HeaderProps {
   onMenuToggle?: () => void;
   isMobileMenuOpen?: boolean;
+  hideCompletedTasks?: boolean;
+  onToggleHideCompleted?: () => void;
+  onEditArea?: (area: any) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMobileMenuOpen }) => {
+const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMobileMenuOpen, hideCompletedTasks = false, onToggleHideCompleted, onEditArea }) => {
   const {
     selectedView,
     selectedProjectId,
@@ -17,6 +20,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMobileMenuOpen }) => {
     setIsQuickEntryOpen,
     setIsSearchModalOpen,
     updateArea,
+    setSelectedAreaId,
+    setSelectedProjectId,
   } = useApp();
 
   const [isEditingAreaName, setIsEditingAreaName] = useState(false);
@@ -119,6 +124,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMobileMenuOpen }) => {
     setIsEditingAreaColor(false);
   };
 
+  const handleAreaTitleClick = () => {
+    const area = getAreaForProject();
+    if (area && selectedProjectId) {
+      // Clear project selection and navigate to area
+      setSelectedProjectId(null);
+      setSelectedAreaId(area.id);
+    }
+  };
+
   return (
     <header className="bg-white border-b border-gray-200 px-4 py-3">
       <div className="flex items-center justify-between">
@@ -176,11 +190,26 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMobileMenuOpen }) => {
               />
             ) : (
               <h1 
-                className="text-2xl font-semibold text-gray-800 cursor-pointer hover:text-gray-600 transition-colors px-1 rounded hover:bg-gray-100"
+                className={`text-2xl font-semibold text-gray-800 cursor-pointer transition-colors px-1 rounded ${
+                  getAreaForProject() && selectedProjectId 
+                    ? 'hover:text-primary-600 hover:bg-primary-50' 
+                    : 'hover:text-gray-600 hover:bg-gray-100'
+                }`}
+                onClick={() => {
+                  const area = getAreaForProject();
+                  if (area && selectedProjectId) {
+                    handleAreaTitleClick();
+                  }
+                }}
                 onDoubleClick={() => {
                   const area = getAreaForProject();
-                  if (area) startEditingAreaName(area);
+                  if (area && onEditArea) {
+                    onEditArea(area);
+                  } else if (area) {
+                    startEditingAreaName(area);
+                  }
                 }}
+                title={getAreaForProject() && selectedProjectId ? 'Click to view area' : undefined}
               >
                 {getTitle()}
               </h1>
@@ -198,6 +227,25 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMobileMenuOpen }) => {
             <span className="hidden sm:inline text-sm">Quick Find</span>
             <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-xs bg-gray-100 rounded">⌘K</kbd>
           </button>
+          
+          {onToggleHideCompleted && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600 hidden sm:inline">Hide Completed</span>
+              <button
+                onClick={onToggleHideCompleted}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
+                  hideCompletedTasks ? 'bg-primary-600' : 'bg-gray-200'
+                }`}
+                title={hideCompletedTasks ? 'Show Completed Tasks' : 'Hide Completed Tasks'}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    hideCompletedTasks ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          )}
           
           <button
             onClick={() => setIsQuickEntryOpen(true)}

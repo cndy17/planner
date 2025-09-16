@@ -16,9 +16,10 @@ import { format, isToday, isTomorrow, addDays, startOfDay, endOfDay, isWithinInt
 
 interface PlannerViewProps {
   view: 'today' | 'upcoming';
+  hideCompletedTasks?: boolean;
 }
 
-const PlannerView: React.FC<PlannerViewProps> = ({ view }) => {
+const PlannerView: React.FC<PlannerViewProps> = ({ view, hideCompletedTasks = false }) => {
   const { tasks, setIsQuickEntryOpen } = useApp();
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -170,7 +171,7 @@ const PlannerView: React.FC<PlannerViewProps> = ({ view }) => {
 
   if (view === 'today') {
     return (
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="p-6">
           {/* Current Time */}
           <div className="mb-6 p-4 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg">
@@ -232,7 +233,7 @@ const PlannerView: React.FC<PlannerViewProps> = ({ view }) => {
   const upcomingDays = getUpcomingDays();
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="flex-1 overflow-y-auto custom-scrollbar">
       <div className="p-6">
         <div className="mb-6 flex items-center gap-2">
           <CalendarDays className="w-5 h-5 text-primary-600" />

@@ -8,9 +8,10 @@ import { format } from 'date-fns';
 
 interface ProjectViewProps {
   projectId: string;
+  hideCompletedTasks?: boolean;
 }
 
-const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
+const ProjectView: React.FC<ProjectViewProps> = ({ projectId, hideCompletedTasks = false }) => {
   const { projects, tasks, areas, updateProject, deleteProject, updateTask, addTask, reorderTasks, getSectionsByProject } = useApp();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
@@ -135,7 +136,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="flex-1 overflow-y-auto custom-scrollbar">
       {/* Project Header */}
       <div className="bg-white border-b border-gray-200 p-6">
         <div className="flex items-start justify-between">
@@ -223,7 +224,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
       {/* Tasks with Sections */}
       <div className="p-6">
-        <SectionedTaskView projectId={projectId} />
+        <SectionedTaskView projectId={projectId} hideCompletedTasks={hideCompletedTasks} />
         
         {/* Add Task Section */}
         <div className="mt-6 pt-4 border-t border-gray-200">

@@ -33,6 +33,7 @@ export interface Project {
   name: string;
   description?: string | null;
   deadline?: Date | null;
+  order?: number;
   areaId?: string | null;
   area?: Area | null;
   tasks: Task[];
@@ -70,7 +71,7 @@ export interface CalendarEvent {
   description?: string;
 }
 
-export type ViewType = 'today' | 'upcoming' | 'anytime' | 'someday' | 'logbook';
+export type ViewType = 'today' | 'upcoming' | 'anytime' | 'someday' | 'logbook' | 'calendar';
 export type SidebarSection = 'areas' | 'projects' | 'tags';
 
 export interface AppState {

@@ -7,6 +7,7 @@ interface AppContextType extends AppState {
   deleteTask: (id: string) => Promise<void>;
   toggleTaskComplete: (id: string) => Promise<void>;
   reorderTasks: (reorderedTasks: Task[]) => Promise<void>;
+  reorderProjects: (reorderedProjects: Project[]) => Promise<void>;
   
   addProject: (project: Omit<Project, 'id' | 'tasks'>) => Promise<void>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
@@ -241,6 +242,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const reorderProjects = async (reorderedProjects: Project[]) => {
+    try {
+      console.log('AppContext reorderProjects called with:', reorderedProjects.map(p => p.name));
+      
+      // Update local state immediately for responsive UI
+      setState(prev => {
+        // Update the order values for the reordered projects
+        const updatedReorderedProjects = reorderedProjects.map((project, index) => ({
+          ...project,
+          order: index
+        }));
+        
+        // Get the IDs of reordered projects
+        const reorderedProjectIds = new Set(reorderedProjects.map(p => p.id));
+        
+        // Get all other projects (not being reordered)
+        const otherProjects = prev.projects.filter(project => !reorderedProjectIds.has(project.id));
+        
+        // Combine: other projects + newly ordered projects
+        const allProjects = [...otherProjects, ...updatedReorderedProjects];
+        
+        console.log('AppContext: Updated local state with reordered projects');
+        return { ...prev, projects: allProjects };
+      });
+
+      // Update backend with new order
+      const response = await fetch(`${API_URL}/projects/reorder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectIds: reorderedProjects.map(p => p.id) }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      console.log('AppContext: Successfully reordered projects');
+      
+    } catch (error) {
+      console.error('AppContext: Failed to reorder projects:', error);
+    }
+  };
+
   // Project operations
   const addProject = async (project: Omit<Project, 'id' | 'tasks'>) => {
     try {
@@ -428,6 +472,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return state.tasks.filter(task => task.status === 'pending' && !task.dueDate);
       case 'logbook':
         return state.tasks.filter(task => task.status === 'completed');
+      case 'calendar':
+        return state.tasks;
       default:
         return state.tasks;
     }
@@ -553,6 +599,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     deleteTask,
     toggleTaskComplete,
     reorderTasks,
+    reorderProjects,
     addProject,
     updateProject,
     deleteProject,
