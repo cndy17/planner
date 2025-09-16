@@ -25,6 +25,7 @@ model Project {
   name        String
   description String?
   deadline    DateTime?
+  order       Int           @default(0)
   area        Area?         @relation(fields: [areaId], references: [id])
   areaId      String?
   tasks       Task[]

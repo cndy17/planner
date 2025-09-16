@@ -72,7 +72,8 @@ app.get('/projects', async (req, res) => {
           }
         }, 
         area: true 
-      } 
+      },
+      orderBy: { order: 'asc' }
     });
     res.json(projects);
   } catch (error) {
@@ -207,6 +208,34 @@ app.put('/tasks/reorder', async (req, res) => {
     });
     
     res.json(updatedTasks);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Project reordering endpoint
+app.put('/projects/reorder', async (req, res) => {
+  try {
+    const { projectIds } = req.body;
+    
+    // Update order for each project
+    const updatePromises = projectIds.map((projectId, index) =>
+      prisma.project.update({
+        where: { id: projectId },
+        data: { order: index }
+      })
+    );
+    
+    await Promise.all(updatePromises);
+    
+    // Return updated projects
+    const updatedProjects = await prisma.project.findMany({
+      where: { id: { in: projectIds } },
+      include: { tasks: true, area: true },
+      orderBy: { order: 'asc' }
+    });
+    
+    res.json(updatedProjects);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
