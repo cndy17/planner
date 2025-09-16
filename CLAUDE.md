@@ -10,10 +10,15 @@ This is a full-stack task management application with:
 
 ## Current Status
 - ✅ Basic CRUD operations working
-- ✅ Database schema with order fields  
-- ✅ Backend reorder endpoint implemented
+- ✅ Database schema with order fields for both tasks and projects
+- ✅ Backend reorder endpoints implemented for tasks and projects
 - ✅ Frontend state management with optimistic updates
-- ❌ **Drag-and-drop functionality not working** (main issue)
+- ✅ Enhanced UI components with modern styling and improved UX
+- ✅ Project ordering functionality added
+- ✅ TagFormModal component for tag management
+- ✅ Drag-and-drop with dedicated handles implemented
+- ✅ Multiple view layouts (Calendar, Planner, Projects, Areas)
+- 🔄 **In progress**: Refining drag-and-drop user experience
 
 ## Drag-and-Drop Issue Analysis
 
@@ -75,11 +80,20 @@ This is a full-stack task management application with:
 - ✅ Minimal Changes: Builds on existing @dnd-kit setup
 
 ## Key Files
-- `/backend/index.js` - API endpoints with reorder functionality (lines 184-209)
-- `/frontend/src/context/AppContext.tsx` - State management with optimistic updates (lines 160-200)
-- `/frontend/src/components/AppLayout.tsx` - Fixed useEffect dependencies (lines 32-51)
-- `/frontend/src/components/TaskList.tsx` - @dnd-kit implementation
-- `/frontend/src/components/TaskCard.tsx` - Complex interactive task component
+### Backend
+- `/backend/index.js` - API endpoints with reorder functionality for both tasks and projects
+- `/backend/prisma/schema.prisma` - Database schema with order fields for Projects and Tasks
+- `/backend/fix-project-order.js` - Migration script for adding order to existing projects
+
+### Frontend
+- `/frontend/src/context/AppContext.tsx` - State management with optimistic updates
+- `/frontend/src/components/AppLayout.tsx` - Main layout component with navigation
+- `/frontend/src/components/TaskList.tsx` - @dnd-kit drag-and-drop implementation
+- `/frontend/src/components/TaskCard.tsx` - Interactive task component with drag handles
+- `/frontend/src/components/modals/TagFormModal.tsx` - Tag management modal
+- `/frontend/src/components/AreaView.tsx` - Area-based project organization
+- `/frontend/src/components/ProjectView.tsx` - Project detail view with task management
+- `/frontend/src/index.css` - Global styles and modern UI theming
 
 ## Commands
 
@@ -139,10 +153,28 @@ The application uses PostgreSQL with Prisma ORM. Core models with relationships:
 
 ### Backend API
 Express server (`backend/index.js`) exposing RESTful endpoints:
+
+#### Core CRUD Operations
 - `GET /areas` - Returns areas with their projects
 - `GET /projects` - Returns projects with tasks and area
 - `GET /tasks` - Returns tasks with tags and project
 - `GET /tags` - Returns tags with associated tasks
+- `POST /areas` - Create new area
+- `POST /projects` - Create new project
+- `POST /tasks` - Create new task
+- `POST /tags` - Create new tag
+- `PUT /areas/:id` - Update area
+- `PUT /projects/:id` - Update project  
+- `PUT /tasks/:id` - Update task
+- `PUT /tags/:id` - Update tag
+- `DELETE /areas/:id` - Delete area
+- `DELETE /projects/:id` - Delete project
+- `DELETE /tasks/:id` - Delete task
+- `DELETE /tags/:id` - Delete tag
+
+#### Reordering Operations
+- `PUT /tasks/reorder` - Reorder tasks within a project or section
+- `PUT /projects/reorder` - Reorder projects within an area
 
 Configuration:
 - Database connection via `DATABASE_URL` environment variable
@@ -155,3 +187,29 @@ TypeScript React application with:
 - React 19 with latest testing libraries
 - Create React App configuration (not ejected)
 - Test files colocated with components (`*.test.tsx`)
+- @dnd-kit for drag-and-drop functionality
+- Lucide React for icons
+- Modern CSS with CSS variables for theming
+
+## Recent Enhancements (Latest)
+
+### Database & Backend (Commit: a85dfcd)
+- ✅ Added `order` field to Projects table with migration
+- ✅ Created data migration script (`fix-project-order.js`) for existing projects
+- ✅ Implemented project reordering API endpoint (`PUT /projects/reorder`)
+- ✅ Enhanced existing task reordering functionality
+
+### Frontend & UI (Commit: e7cd50a)
+- ✅ **Major UI Overhaul**: Updated 17 components with modern styling
+- ✅ **New TagFormModal**: Complete tag management interface
+- ✅ **Enhanced Drag-and-Drop**: Dedicated drag handles with visual feedback
+- ✅ **Improved Components**: AppLayout, TaskCard, TaskList, ProjectView, AreaView
+- ✅ **Modern Styling**: Updated CSS with better colors, spacing, and interactions
+- ✅ **Type Safety**: Enhanced TypeScript definitions
+
+### Key Features Added
+- 🎯 **Project Reordering**: Drag and drop projects within areas
+- 🏷️ **Tag Management**: Modal interface for creating/editing tags
+- 📱 **Responsive Design**: Better mobile and desktop experience  
+- 🎨 **Visual Polish**: Consistent spacing, colors, and hover effects
+- ⚡ **Performance**: Optimized state management and rendering
