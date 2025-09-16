@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -19,7 +19,7 @@ import { useApp } from '../context/AppContext';
 import { Task, TaskSection } from '../types';
 import DraggableTaskItem from './DraggableTaskItem';
 import TaskCard from './TaskCard';
-import { Plus, MoreHorizontal, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, MoreVertical, ChevronDown, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 
 interface SectionedTaskViewProps {
   projectId: string;
@@ -34,6 +34,7 @@ const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId, hideCo
     updateTask,
     addTaskSection,
     updateTaskSection,
+    deleteTaskSection,
     getSectionsByProject,
     getTasksBySection,
     addTask,
@@ -54,6 +55,10 @@ const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId, hideCo
   const [addingTaskToSection, setAddingTaskToSection] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [isAddingToUnsectioned, setIsAddingToUnsectioned] = useState(false);
+  
+  // Section dropdown state
+  const [showSectionDropdown, setShowSectionDropdown] = useState<string | null>(null);
+  const sectionDropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const sections = getSectionsByProject(projectId);
   const allUnsectionedTasks = tasks.filter(t => t.projectId === projectId && !t.sectionId);
@@ -182,6 +187,32 @@ const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId, hideCo
     setEditingSectionTitle('');
   };
 
+  const handleDeleteSection = async (sectionId: string, sectionTitle: string) => {
+    if (window.confirm(`Are you sure you want to delete the section "${sectionTitle}"? All tasks in this section will be moved to the unsectioned area.`)) {
+      await deleteTaskSection(sectionId);
+      setShowSectionDropdown(null);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showSectionDropdown) {
+        const dropdownRef = sectionDropdownRefs.current[showSectionDropdown];
+        if (dropdownRef && !dropdownRef.contains(event.target as Node)) {
+          setShowSectionDropdown(null);
+        }
+      }
+    };
+
+    if (showSectionDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSectionDropdown]);
+
   // Inline task creation functions
   const startAddingTaskToSection = (sectionId: string) => {
     setAddingTaskToSection(sectionId);
@@ -274,9 +305,53 @@ const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId, hideCo
             <span className="text-sm text-gray-500">({sectionTasks.length})</span>
           </div>
           
-          <button className="p-1 hover:bg-gray-100 rounded">
-            <MoreHorizontal className="w-4 h-4 text-gray-400" />
-          </button>
+          {/* Section Actions Dropdown */}
+          <div 
+            className="relative" 
+            ref={(ref) => {
+              sectionDropdownRefs.current[section.id] = ref;
+            }}
+          >
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowSectionDropdown(showSectionDropdown === section.id ? null : section.id);
+              }}
+              className="p-1 hover:bg-gray-100 rounded transition-colors"
+            >
+              <MoreVertical className="w-4 h-4 text-gray-400" />
+            </button>
+            
+            {/* Section Dropdown Menu */}
+            {showSectionDropdown === section.id && (
+              <div className="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    startEditingSection(section);
+                    setShowSectionDropdown(null);
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <Edit2 className="w-3 h-3" />
+                  Edit
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDeleteSection(section.id, section.title);
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Section Tasks */}
@@ -374,9 +449,12 @@ const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId, hideCo
                   <span className="text-sm text-gray-500">({unsectionedTasks.length})</span>
                 </div>
                 
-                <button className="p-1 hover:bg-gray-100 rounded">
-                  <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                </button>
+                {/* Unsectioned Actions - Just visual consistency for now */}
+                <div className="relative">
+                  <button className="p-1 hover:bg-gray-100 rounded transition-colors">
+                    <MoreVertical className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
               </div>
               
               {!isUnsectionedCollapsed && (
