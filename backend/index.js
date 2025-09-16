@@ -73,7 +73,10 @@ app.get('/projects', async (req, res) => {
         }, 
         area: true 
       },
-      orderBy: { order: 'asc' }
+      orderBy: [
+        { areaId: 'asc' },
+        { order: 'asc' }
+      ]
     });
     res.json(projects);
   } catch (error) {
