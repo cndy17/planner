@@ -11,14 +11,58 @@ This is a full-stack task management application with:
 ## Current Status
 - ✅ Basic CRUD operations working
 - ✅ Database schema with order fields for both tasks and projects
-- ✅ Backend reorder endpoints implemented for tasks and projects
+- ✅ Backend reorder endpoints implemented for tasks and projects  
 - ✅ Frontend state management with optimistic updates
 - ✅ Enhanced UI components with modern styling and improved UX
-- ✅ Project ordering functionality added
 - ✅ TagFormModal component for tag management
-- ✅ Drag-and-drop with dedicated handles implemented
 - ✅ Multiple view layouts (Calendar, Planner, Projects, Areas)
-- 🔄 **In progress**: Refining drag-and-drop user experience
+- ✅ UI Consistency: Vertical three-dot dropdowns implemented across components
+- ❌ **CRITICAL ISSUE**: Project order still not persisting after server restart
+- ❌ **ISSUE**: Drag-and-drop functionality not working in AreaView (menu bar projects)
+
+## Current Critical Issues
+
+### 1. Project Order Persistence Problem
+**Status**: UNRESOLVED - High Priority
+**Description**: Despite implementing API fixes and database migrations, project order is still not persisting after server restarts.
+
+**Investigation Done**:
+- ✅ Fixed API query to order by `[{ areaId: 'asc' }, { order: 'asc' }]` instead of just `{ order: 'asc' }`
+- ✅ Regenerated Prisma client and restarted server
+- ✅ Verified database has correct order values (confirmed via direct query)
+- ✅ Verified API returns projects in correct order when called directly
+- ✅ Backend reorder endpoint (`PUT /projects/reorder`) exists and works
+
+**Still To Investigate**:
+- 🔍 Check if frontend drag-and-drop actually calls the reorder API
+- 🔍 Verify if the reorder API is actually updating the database
+- 🔍 Test if manual API calls to reorder endpoint persist correctly
+- 🔍 Check if there are any race conditions or caching issues
+- 🔍 Verify if the issue is with the drag-and-drop event handling
+
+**Next Steps**:
+1. Test manual API calls to `/projects/reorder` endpoint
+2. Add console logging to frontend drag-and-drop handlers
+3. Check network tab during drag-and-drop operations
+4. Verify database changes are actually saved during reorder
+
+### 2. Drag-and-Drop Not Working in AreaView
+**Status**: BROKEN - Medium Priority
+**Description**: The drag-and-drop functionality for project cards in AreaView (left menu bar) is not working properly.
+
+**Analysis**: 
+- The `SortableProjectCard` component has all drag-and-drop setup with @dnd-kit
+- Drag listeners are applied to the entire card via `{...attributes}` and `{...listeners}`
+- Interactive elements (buttons, dropdowns) have `onPointerDown` event stopPropagation
+- DndContext is properly set up with sensors and collision detection
+
+**Potential Issues**:
+- Event conflicts between drag listeners and interactive elements (dropdowns, buttons)
+- Z-index issues with dropdowns interfering with drag
+- Touch/pointer sensor configuration may need adjustment
+- Missing dedicated drag handle (recommendation from previous analysis)
+
+**Recommended Fix**: Implement dedicated drag handle approach as outlined in the drag-and-drop analysis section.
 
 ## Drag-and-Drop Issue Analysis
 
