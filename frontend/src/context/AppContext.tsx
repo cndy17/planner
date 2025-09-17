@@ -55,7 +55,7 @@ export const useApp = () => {
   return context;
 };
 
-const API_URL = 'http://localhost:4000';
+const API_URL = 'http://localhost:3004';
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AppState>({

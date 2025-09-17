@@ -392,8 +392,8 @@ const Sidebar: React.FC = () => {
     <>
       <div className="w-64 bg-gray-50 h-full flex flex-col border-r border-gray-200">
 
-        {/* Views */}
-        <div className="px-2 py-2">
+        {/* Views - Fixed at top */}
+        <div className="px-2 py-2 border-b border-gray-200">
           {viewItems.map(({ view, icon, label }) => {
             const count = getTasksByView(view).length;
             return (
@@ -422,31 +422,37 @@ const Sidebar: React.FC = () => {
           })}
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {/* Areas & Projects */}
-          <div className="px-2 py-2">
-            <div className="flex items-center justify-between px-3 py-2">
-              <button
-                onClick={() => setShowAreas(!showAreas)}
-                className="flex items-center gap-1 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-800"
-              >
-                {showAreas ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                <span>Areas & Projects</span>
-              </button>
-              <button
-                onClick={() => {
-                  setEditingArea(null);
-                  setIsAreaModalOpen(true);
-                }}
-                className="p-1 hover:bg-gray-100 rounded"
-                title="Add Area"
-              >
-                <Plus className="w-3 h-3 text-gray-500" />
-              </button>
+        {/* Middle Section - Contains scrollable areas */}
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Areas & Projects Header - Sticky */}
+          <div className="bg-gray-50 border-b border-gray-100">
+            <div className="px-2 py-2">
+              <div className="flex items-center justify-between px-3 py-2">
+                <button
+                  onClick={() => setShowAreas(!showAreas)}
+                  className="flex items-center gap-1 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-800"
+                >
+                  {showAreas ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                  <span>Areas & Projects</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingArea(null);
+                    setIsAreaModalOpen(true);
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded"
+                  title="Add Area"
+                >
+                  <Plus className="w-3 h-3 text-gray-500" />
+                </button>
+              </div>
             </div>
-            
-            {showAreas && (
-              <div className="mt-1">
+          </div>
+
+          {/* Scrollable Areas Content */}
+          {showAreas && (
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <div className="px-2 py-2">
                 {/* Inbox (tasks without project) */}
                 <button
                   onClick={() => {
@@ -486,15 +492,23 @@ const Sidebar: React.FC = () => {
                         onMouseEnter={() => setHoveredAreaId(area.id)}
                         onMouseLeave={() => setHoveredAreaId(null)}
                       >
-                        <button
-                          onClick={() => {
-                            toggleArea(area.id);
-                            setSelectedAreaId(area.id);
-                            setSelectedProjectId(null);
-                          }}
-                          className="flex-1 flex items-center gap-2 text-left"
-                        >
-                          {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                        <div className="flex-1 flex items-center gap-2 text-left">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleArea(area.id);
+                            }}
+                            className="p-1 hover:bg-gray-200 rounded transition-colors"
+                          >
+                            {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedAreaId(area.id);
+                              setSelectedProjectId(null);
+                            }}
+                            className="flex-1 flex items-center gap-2 text-left"
+                          >
                           <Circle className="w-3 h-3" style={{ color: area.color }} fill={area.color} />
                           {editingAreaId === area.id ? (
                             <input
@@ -525,7 +539,8 @@ const Sidebar: React.FC = () => {
                               {area.name}
                             </span>
                           )}
-                        </button>
+                          </button>
+                        </div>
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-gray-500 mr-1">{areaProjects.length}</span>
                           {hoveredAreaId === area.id && (
@@ -632,11 +647,14 @@ const Sidebar: React.FC = () => {
                   );
                 })}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
 
-          {/* Tags */}
-          <div className="px-2 py-2 border-t border-gray-200">
+        {/* Tags Section - Fixed at bottom */}
+        <div className="border-t border-gray-200 bg-gray-50">
+          {/* Tags Header */}
+          <div className="px-2 py-2">
             <button
               onClick={() => setShowTags(!showTags)}
               className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:bg-gray-100 rounded"
@@ -644,9 +662,12 @@ const Sidebar: React.FC = () => {
               <span>Tags</span>
               {showTags ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
             </button>
-            
-            {showTags && (
-              <div className="mt-1">
+          </div>
+
+          {/* Tags Content */}
+          {showTags && (
+            <div className="px-2 pb-2 max-h-32 overflow-y-auto">
+              <div className="space-y-1">
                 {tags.map(tag => (
                   <button
                     key={tag.id}
@@ -657,8 +678,8 @@ const Sidebar: React.FC = () => {
                   </button>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Bottom Actions */}
