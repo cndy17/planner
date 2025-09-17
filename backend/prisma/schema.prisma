@@ -17,7 +17,10 @@ model Area {
   id        String   @id @default(uuid())
   name      String
   color     String
+  order     Int      @default(0)
   projects  Project[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Project {
@@ -30,6 +33,8 @@ model Project {
   areaId      String?
   tasks       Task[]
   sections    TaskSection[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
 
 model Task {
@@ -52,6 +57,8 @@ model Task {
   subtasks      Task[]       @relation("Subtasks")
   recurrence    String?
   order         Float        @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model Tag {

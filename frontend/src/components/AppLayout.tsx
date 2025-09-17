@@ -8,6 +8,7 @@ import ProjectView from './ProjectView';
 import AreaView from './AreaView';
 import PlannerView from './PlannerView';
 import CalendarView from './CalendarView';
+import LogbookView from './LogbookView';
 import QuickEntryModal from './modals/QuickEntryModal';
 import SearchModal from './modals/SearchModal';
 import TaskFormModal from './modals/TaskFormModal';
@@ -160,6 +161,11 @@ const AppLayout: React.FC = () => {
     // Calendar View
     if (selectedView === 'calendar') {
       return <CalendarView hideCompletedTasks={hideCompletedTasks} />;
+    }
+
+    // Logbook View
+    if (selectedView === 'logbook') {
+      return <LogbookView hideCompletedTasks={hideCompletedTasks} />;
     }
 
     // Default Task List View

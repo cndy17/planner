@@ -18,7 +18,8 @@ app.get('/areas', async (req, res) => {
             tasks: true
           }
         } 
-      } 
+      },
+      orderBy: { order: 'asc' }
     });
     res.json(areas);
   } catch (error) {
@@ -34,6 +35,27 @@ app.post('/areas', async (req, res) => {
     });
     res.json(area);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Area reordering endpoint - MUST come before PUT /areas/:id
+app.put('/areas/reorder', async (req, res) => {
+  try {
+    const { areaIds } = req.body;
+    
+    // Update order for each area
+    const updatePromises = areaIds.map((areaId, index) =>
+      prisma.area.update({
+        where: { id: areaId },
+        data: { order: index }
+      })
+    );
+    
+    await Promise.all(updatePromises);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Area reorder error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -79,6 +101,34 @@ app.get('/projects', async (req, res) => {
       ]
     });
     res.json(projects);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Project reordering endpoint - MUST come before PUT /projects/:id
+app.put('/projects/reorder', async (req, res) => {
+  try {
+    const { projectIds } = req.body;
+    
+    // Update order for each project
+    const updatePromises = projectIds.map((projectId, index) =>
+      prisma.project.update({
+        where: { id: projectId },
+        data: { order: index }
+      })
+    );
+    
+    await Promise.all(updatePromises);
+    
+    // Return updated projects
+    const updatedProjects = await prisma.project.findMany({
+      where: { id: { in: projectIds } },
+      include: { tasks: true, area: true },
+      orderBy: { order: 'asc' }
+    });
+    
+    res.json(updatedProjects);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -216,33 +266,6 @@ app.put('/tasks/reorder', async (req, res) => {
   }
 });
 
-// Project reordering endpoint
-app.put('/projects/reorder', async (req, res) => {
-  try {
-    const { projectIds } = req.body;
-    
-    // Update order for each project
-    const updatePromises = projectIds.map((projectId, index) =>
-      prisma.project.update({
-        where: { id: projectId },
-        data: { order: index }
-      })
-    );
-    
-    await Promise.all(updatePromises);
-    
-    // Return updated projects
-    const updatedProjects = await prisma.project.findMany({
-      where: { id: { in: projectIds } },
-      include: { tasks: true, area: true },
-      orderBy: { order: 'asc' }
-    });
-    
-    res.json(updatedProjects);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Tag routes
 app.get('/tags', async (req, res) => {

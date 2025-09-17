@@ -8,6 +8,7 @@ interface AppContextType extends AppState {
   toggleTaskComplete: (id: string) => Promise<void>;
   reorderTasks: (reorderedTasks: Task[]) => Promise<void>;
   reorderProjects: (reorderedProjects: Project[]) => Promise<void>;
+  reorderAreas: (reorderedAreas: Area[]) => Promise<void>;
   
   addProject: (project: Omit<Project, 'id' | 'tasks'>) => Promise<void>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
@@ -55,7 +56,7 @@ export const useApp = () => {
   return context;
 };
 
-const API_URL = 'http://localhost:3004';
+const API_URL = 'http://localhost:4000';
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AppState>({
@@ -282,6 +283,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       
     } catch (error) {
       console.error('AppContext: Failed to reorder projects:', error);
+    }
+  };
+
+  const reorderAreas = async (reorderedAreas: Area[]) => {
+    try {
+      console.log('AppContext reorderAreas called with:', reorderedAreas.map(a => a.name));
+      
+      // Update local state immediately for responsive UI
+      setState(prev => {
+        // Update the order values for the reordered areas
+        const updatedReorderedAreas = reorderedAreas.map((area, index) => ({
+          ...area,
+          order: index
+        }));
+        
+        console.log('AppContext: Updated local state with reordered areas');
+        return { ...prev, areas: updatedReorderedAreas };
+      });
+
+      // Update backend with new order
+      const response = await fetch(`${API_URL}/areas/reorder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ areaIds: reorderedAreas.map(a => a.id) }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      console.log('AppContext: Successfully reordered areas');
+      
+    } catch (error) {
+      console.error('AppContext: Failed to reorder areas:', error);
     }
   };
 
@@ -600,6 +635,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toggleTaskComplete,
     reorderTasks,
     reorderProjects,
+    reorderAreas,
     addProject,
     updateProject,
     deleteProject,
