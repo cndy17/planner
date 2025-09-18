@@ -349,6 +349,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      }
+
       const updatedProject = await response.json();
       setState(prev => ({
         ...prev,
@@ -358,6 +364,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }));
     } catch (error) {
       console.error('Failed to update project:', error);
+      throw error; // Re-throw so calling components can handle the error
     }
   };
 

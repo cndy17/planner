@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { 
-  Calendar, 
-  CalendarDays, 
-  Clock, 
-  Archive, 
-  Folder, 
+import {
+  Calendar,
+  CalendarDays,
+  Clock,
+  Archive,
+  Folder,
   Hash,
   Plus,
   ChevronDown,
@@ -14,7 +14,8 @@ import {
   Edit2,
   CalendarCheck,
   Settings,
-  Trash2
+  Trash2,
+  LayoutDashboard
 } from 'lucide-react';
 import { ViewType, Area, Project } from '../types';
 import AreaModal from './modals/AreaModal';
@@ -382,6 +383,7 @@ const Sidebar: React.FC = () => {
   const viewItems: { view: ViewType; icon: React.ReactNode; label: string }[] = [
     { view: 'today', icon: <Calendar className="w-4 h-4" />, label: 'Today' },
     { view: 'upcoming', icon: <CalendarDays className="w-4 h-4" />, label: 'Upcoming' },
+    { view: 'planner', icon: <LayoutDashboard className="w-4 h-4" />, label: 'Planner' },
     { view: 'anytime', icon: <Clock className="w-4 h-4" />, label: 'Anytime' },
     { view: 'someday', icon: <Archive className="w-4 h-4" />, label: 'Someday' },
     { view: 'logbook', icon: <Archive className="w-4 h-4" />, label: 'Logbook' },

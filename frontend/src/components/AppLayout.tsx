@@ -153,9 +153,14 @@ const AppLayout: React.FC = () => {
       return <AreaView areaId={selectedAreaId} hideCompletedTasks={hideCompletedTasks} />;
     }
 
-    // Planner Views (Today/Upcoming)
+    // Planner Views (Today/Upcoming/Planner)
     if (selectedView === 'today' || selectedView === 'upcoming') {
       return <PlannerView view={selectedView} hideCompletedTasks={hideCompletedTasks} />;
+    }
+
+    // Kanban Planner View
+    if (selectedView === 'planner') {
+      return <PlannerView view='today' hideCompletedTasks={hideCompletedTasks} />;
     }
 
     // Calendar View

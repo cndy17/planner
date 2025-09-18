@@ -32,6 +32,7 @@ export interface Project {
   id: string;
   name: string;
   description?: string | null;
+  notes?: string | null;
   deadline?: Date | null;
   order?: number;
   areaId?: string | null;
@@ -71,7 +72,7 @@ export interface CalendarEvent {
   description?: string;
 }
 
-export type ViewType = 'today' | 'upcoming' | 'anytime' | 'someday' | 'logbook' | 'calendar';
+export type ViewType = 'today' | 'upcoming' | 'anytime' | 'someday' | 'logbook' | 'calendar' | 'planner';
 export type SidebarSection = 'areas' | 'projects' | 'tags';
 
 export interface AppState {

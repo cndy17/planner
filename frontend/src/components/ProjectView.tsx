@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Task } from '../types';
 import SectionedTaskView from './SectionedTaskView';
 import TaskList from './TaskList';
+import NotesPanel from './NotesPanel';
 import { Plus, Calendar, MoreVertical, Clock, X, Edit2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import ProjectModal from './modals/ProjectModal';
@@ -168,267 +169,273 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId, hideCompletedTasks
   };
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar">
-      {/* Project Header */}
-      <div className="bg-white border-b border-gray-200 p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            {isEditingProjectName ? (
-              <input
-                type="text"
-                value={editingProjectName}
-                onChange={(e) => setEditingProjectName(e.target.value)}
-                className="text-2xl font-bold text-gray-800 bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded px-1 w-full"
-                autoFocus
-                onBlur={saveProjectName}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    saveProjectName();
-                  } else if (e.key === 'Escape') {
-                    cancelEditingProjectName();
-                  }
-                }}
-              />
-            ) : (
-              <h2 
-                className="text-2xl font-bold text-gray-800 cursor-pointer hover:text-gray-600 transition-colors px-1 rounded hover:bg-gray-100"
-                onDoubleClick={startEditingProjectName}
-              >
-                {project.name}
-              </h2>
-            )}
-            
-            {isEditingDescription ? (
-              <textarea
-                value={editingDescription}
-                onChange={(e) => setEditingDescription(e.target.value)}
-                className="mt-2 text-gray-600 bg-transparent border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full resize-none"
-                rows={2}
-                autoFocus
-                onBlur={saveDescription}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    saveDescription();
-                  } else if (e.key === 'Escape') {
-                    cancelEditingDescription();
-                  }
-                }}
-                placeholder="Add a description..."
-              />
-            ) : (
-              <p 
-                className="mt-2 text-gray-600 cursor-pointer hover:text-gray-800 transition-colors px-1 rounded hover:bg-gray-100 min-h-[1.5rem]"
-                onDoubleClick={startEditingDescription}
-              >
-                {project.description || 'Add a description...'}
-              </p>
-            )}
-            
-            <div className="flex items-center gap-4 mt-4">
-              {project.deadline && (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <Calendar className="w-4 h-4" />
-                  <span>Due {format(new Date(project.deadline), 'MMM d, yyyy')}</span>
-                </div>
+    <div className="flex h-full">
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {/* Project Header */}
+        <div className="bg-white border-b border-gray-200 p-6">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              {isEditingProjectName ? (
+                <input
+                  type="text"
+                  value={editingProjectName}
+                  onChange={(e) => setEditingProjectName(e.target.value)}
+                  className="text-2xl font-bold text-gray-800 bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded px-1 w-full"
+                  autoFocus
+                  onBlur={saveProjectName}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      saveProjectName();
+                    } else if (e.key === 'Escape') {
+                      cancelEditingProjectName();
+                    }
+                  }}
+                />
+              ) : (
+                <h2
+                  className="text-2xl font-bold text-gray-800 cursor-pointer hover:text-gray-600 transition-colors px-1 rounded hover:bg-gray-100"
+                  onDoubleClick={startEditingProjectName}
+                >
+                  {project.name}
+                </h2>
               )}
-              
-              <div className="flex items-center gap-2">
-                <div className="text-sm text-gray-500">
-                  {completedTasks.length} of {projectTasks.length} tasks completed
+
+              {isEditingDescription ? (
+                <textarea
+                  value={editingDescription}
+                  onChange={(e) => setEditingDescription(e.target.value)}
+                  className="mt-2 text-gray-600 bg-transparent border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full resize-none"
+                  rows={2}
+                  autoFocus
+                  onBlur={saveDescription}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      saveDescription();
+                    } else if (e.key === 'Escape') {
+                      cancelEditingDescription();
+                    }
+                  }}
+                  placeholder="Add a description..."
+                />
+              ) : (
+                <p
+                  className="mt-2 text-gray-600 cursor-pointer hover:text-gray-800 transition-colors px-1 rounded hover:bg-gray-100 min-h-[1.5rem]"
+                  onDoubleClick={startEditingDescription}
+                >
+                  {project.description || 'Add a description...'}
+                </p>
+              )}
+
+              <div className="flex items-center gap-4 mt-4">
+                {project.deadline && (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Calendar className="w-4 h-4" />
+                    <span>Due {format(new Date(project.deadline), 'MMM d, yyyy')}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <div className="text-sm text-gray-500">
+                    {completedTasks.length} of {projectTasks.length} tasks completed
+                  </div>
+                  <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary-500 transition-all"
+                      style={{ width: `${completionPercentage}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">{completionPercentage}%</span>
                 </div>
-                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary-500 transition-all"
-                    style={{ width: `${completionPercentage}%` }}
-                  />
-                </div>
-                <span className="text-sm font-medium text-gray-700">{completionPercentage}%</span>
               </div>
             </div>
-          </div>
-          
-          {/* Project Actions Dropdown */}
-          <div className="relative" ref={projectDropdownRef}>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowProjectDropdown(!showProjectDropdown);
-              }}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <MoreVertical className="w-5 h-5 text-gray-500" />
-            </button>
-            
-            {/* Project Dropdown Menu */}
-            {showProjectDropdown && (
-              <div className="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleEditProject();
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-                >
-                  <Edit2 className="w-3 h-3" />
-                  Edit
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleDeleteProject();
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  Delete
-                </button>
-              </div>
-            )}
+
+            {/* Project Actions Dropdown */}
+            <div className="relative" ref={projectDropdownRef}>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowProjectDropdown(!showProjectDropdown);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <MoreVertical className="w-5 h-5 text-gray-500" />
+              </button>
+
+              {/* Project Dropdown Menu */}
+              {showProjectDropdown && (
+                <div className="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleEditProject();
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDeleteProject();
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Tasks with Sections */}
-      <div className="p-6">
-        <SectionedTaskView projectId={projectId} hideCompletedTasks={hideCompletedTasks} />
-        
-        {/* Add Task Section */}
-        <div className="mt-6 pt-4 border-t border-gray-200">
-          {isAddingTask ? (
-            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-              {/* Task Title Input */}
-              <input
-                type="text"
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                placeholder="Enter task title..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 mb-3"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    saveNewTask();
-                  } else if (e.key === 'Escape') {
-                    cancelAddingTask();
-                  }
-                }}
-              />
-              
-              {/* Date/Time Controls */}
-              <div className="flex items-center gap-2 mb-3">
-                <button
-                  onClick={() => setShowDateTimePicker(!showDateTimePicker)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
-                    showDateTimePicker || newTaskDueDate
-                      ? 'bg-primary-100 text-primary-700'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <Calendar className="w-4 h-4" />
-                  <span className="text-sm">
-                    {newTaskDueDate ? format(new Date(newTaskDueDate), 'MMM d') : 'Due Date'}
-                  </span>
-                </button>
-                
-                {newTaskDueDate && (
+        {/* Tasks with Sections */}
+        <div className="p-6">
+          <SectionedTaskView projectId={projectId} hideCompletedTasks={hideCompletedTasks} />
+
+          {/* Add Task Section */}
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            {isAddingTask ? (
+              <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                {/* Task Title Input */}
+                <input
+                  type="text"
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  placeholder="Enter task title..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 mb-3"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      saveNewTask();
+                    } else if (e.key === 'Escape') {
+                      cancelAddingTask();
+                    }
+                  }}
+                />
+
+                {/* Date/Time Controls */}
+                <div className="flex items-center gap-2 mb-3">
                   <button
-                    onClick={() => {
-                      setNewTaskDueDate('');
-                      setNewTaskDueTime('');
-                      setShowDateTimePicker(false);
-                    }}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors"
-                    title="Remove due date"
+                    onClick={() => setShowDateTimePicker(!showDateTimePicker)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${
+                      showDateTimePicker || newTaskDueDate
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
                   >
-                    <X className="w-4 h-4 text-gray-500" />
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-sm">
+                      {newTaskDueDate ? format(new Date(newTaskDueDate), 'MMM d') : 'Due Date'}
+                    </span>
                   </button>
-                )}
-              </div>
-              
-              {/* Date/Time Picker */}
-              {showDateTimePicker && (
-                <div className="bg-gray-50 p-3 rounded-md mb-3">
-                  <div className="flex gap-3">
-                    <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Date</label>
-                      <input
-                        type="date"
-                        value={newTaskDueDate}
-                        onChange={(e) => setNewTaskDueDate(e.target.value)}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Time (optional)</label>
-                      <input
-                        type="time"
-                        value={newTaskDueTime}
-                        onChange={(e) => setNewTaskDueTime(e.target.value)}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                      />
+
+                  {newTaskDueDate && (
+                    <button
+                      onClick={() => {
+                        setNewTaskDueDate('');
+                        setNewTaskDueTime('');
+                        setShowDateTimePicker(false);
+                      }}
+                      className="p-1 hover:bg-gray-200 rounded transition-colors"
+                      title="Remove due date"
+                    >
+                      <X className="w-4 h-4 text-gray-500" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Date/Time Picker */}
+                {showDateTimePicker && (
+                  <div className="bg-gray-50 p-3 rounded-md mb-3">
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Date</label>
+                        <input
+                          type="date"
+                          value={newTaskDueDate}
+                          onChange={(e) => setNewTaskDueDate(e.target.value)}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Time (optional)</label>
+                        <input
+                          type="time"
+                          value={newTaskDueTime}
+                          onChange={(e) => setNewTaskDueTime(e.target.value)}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        />
+                      </div>
                     </div>
                   </div>
+                )}
+
+                {/* Section Selector */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Section (optional)</label>
+                  <select
+                    value={newTaskSectionId}
+                    onChange={(e) => setNewTaskSectionId(e.target.value)}
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  >
+                    <option value="">No Section</option>
+                    {getSectionsByProject(projectId).map(section => (
+                      <option key={section.id} value={section.id}>
+                        {section.title}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              )}
-              
-              {/* Section Selector */}
-              <div className="mb-3">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Section (optional)</label>
-                <select
-                  value={newTaskSectionId}
-                  onChange={(e) => setNewTaskSectionId(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                >
-                  <option value="">No Section</option>
-                  {getSectionsByProject(projectId).map(section => (
-                    <option key={section.id} value={section.id}>
-                      {section.title}
-                    </option>
-                  ))}
-                </select>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={saveNewTask}
+                    disabled={!newTaskTitle.trim()}
+                    className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                  >
+                    Add Task
+                  </button>
+                  <button
+                    onClick={cancelAddingTask}
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
-              
-              {/* Action Buttons */}
-              <div className="flex gap-2">
-                <button
-                  onClick={saveNewTask}
-                  disabled={!newTaskTitle.trim()}
-                  className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
-                >
-                  Add Task
-                </button>
-                <button
-                  onClick={cancelAddingTask}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={startAddingTask}
-              className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Task</span>
-            </button>
-          )}
+            ) : (
+              <button
+                onClick={startAddingTask}
+                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Task</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Project Modal */}
+        <ProjectModal
+          isOpen={isProjectModalOpen}
+          onClose={() => {
+            setIsProjectModalOpen(false);
+          }}
+          editingProject={project}
+        />
       </div>
 
-      {/* Project Modal */}
-      <ProjectModal
-        isOpen={isProjectModalOpen}
-        onClose={() => {
-          setIsProjectModalOpen(false);
-        }}
-        editingProject={project}
-      />
+      {/* Notes Panel */}
+      <NotesPanel projectId={projectId} />
     </div>
   );
 };
