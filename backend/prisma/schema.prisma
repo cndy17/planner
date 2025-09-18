@@ -27,6 +27,7 @@ model Project {
   id          String        @id @default(uuid())
   name        String
   description String?
+  notes       String?
   deadline    DateTime?
   order       Int           @default(0)
   area        Area?         @relation(fields: [areaId], references: [id])
