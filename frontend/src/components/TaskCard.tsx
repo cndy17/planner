@@ -17,7 +17,8 @@ import {
   Edit2,
   Trash2,
   Copy,
-  Repeat
+  Repeat,
+  Plus
 } from 'lucide-react';
 
 interface TaskCardProps {
@@ -28,15 +29,17 @@ interface TaskCardProps {
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0, isDragging = false }) => {
-  const { toggleTaskComplete, updateTask, deleteTask, setEditingTaskId, setIsTaskFormOpen, projects } = useApp();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const { toggleTaskComplete, updateTask, deleteTask, setEditingTaskId, setIsTaskFormOpen, projects, addTask, tasks } = useApp();
   const [showActions, setShowActions] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false); // Default to collapsed
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitle, setEditingTitle] = useState('');
 
   const project = projects.find(p => p.id === task.projectId);
-  const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+
+  // Dynamically find subtasks from all tasks
+  const subtasks = tasks.filter(t => t.parentTaskId === task.id);
+  const hasSubtasks = subtasks.length > 0;
 
   const formatDueDate = (date: Date) => {
     if (isToday(date)) return 'Today';
@@ -65,7 +68,11 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this task?')) {
+    const message = hasSubtasks
+      ? `Are you sure you want to delete this task and its ${subtasks.length} subtask${subtasks.length === 1 ? '' : 's'}?`
+      : 'Are you sure you want to delete this task?';
+
+    if (window.confirm(message)) {
       deleteTask(task.id);
     }
   };
@@ -74,6 +81,22 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
     e.stopPropagation();
     const { id, ...taskWithoutId } = task;
     updateTask(id, { ...taskWithoutId, title: `${task.title} (copy)` });
+  };
+
+  const handleAddSubtask = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await addTask({
+      title: 'New subtask',
+      status: 'pending',
+      parentTaskId: task.id,
+      projectId: task.projectId,
+      sectionId: task.sectionId,
+      flagged: false,
+      tags: [],
+      order: subtasks.length
+    });
+    // Expand to show the new subtask
+    setIsExpanded(true);
   };
 
   const startEditingTitle = () => {
@@ -95,9 +118,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
   };
 
   return (
-    <div className={`group ${level > 0 ? `ml-${level * 6}` : ''}`}>
+    <div className={`group ${level > 0 ? 'ml-8' : ''}`}>
       <div
-        className={`flex items-start gap-3 p-3 rounded-lg transition-all hover:bg-gray-50 ${getPriorityColor()} ${isDragging ? 'opacity-50' : ''}`}
+        className={`flex items-start gap-1 py-1 px-1 transition-all hover:bg-gray-50 ${isDragging ? 'opacity-50' : ''}`}
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
       >
@@ -108,140 +131,71 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
             e.stopPropagation();
             toggleTaskComplete(task.id);
           }}
-          className="mt-0.5 flex-shrink-0"
+          className="mt-0.5 flex-shrink-0 hover:scale-105 transition-transform"
         >
           {task.status === 'completed' ? (
-            <CheckCircle2 className="w-5 h-5 text-primary-500" />
+            <CheckCircle2 className="w-4 h-4 text-green-500" />
           ) : (
-            <Circle className="w-5 h-5 text-gray-400 hover:text-primary-500 transition-colors" />
+            <Circle className="w-4 h-4 text-gray-400 hover:text-blue-500 transition-colors" />
           )}
         </button>
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-2">
-            {/* Expand button for subtasks */}
-            {hasSubtasks && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExpanded(!isExpanded);
-                }}
-                className="mt-0.5 flex-shrink-0"
-              >
-                {isExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-gray-400" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                )}
-              </button>
-            )}
+          <div className="flex items-start gap-0.5">
+            {/* Arrow button - shows on hover for all tasks */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(!isExpanded);
+              }}
+              className={`mt-0.5 flex-shrink-0 transition-opacity ${showActions ? 'opacity-100' : 'opacity-0'}`}
+              title={isExpanded ? "Collapse" : "Expand"}
+            >
+              {isExpanded ? (
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              )}
+            </button>
 
             <div className="flex-1">
               {/* Title */}
-              {isEditingTitle ? (
-                <input
-                  type="text"
-                  value={editingTitle}
-                  onChange={(e) => setEditingTitle(e.target.value)}
-                  className="font-medium text-gray-800 bg-transparent border border-blue-300 rounded px-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
-                  autoFocus
-                  onBlur={saveTitle}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      saveTitle();
-                    } else if (e.key === 'Escape') {
-                      cancelEditingTitle();
-                    }
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <h3
-                  className={`font-medium cursor-pointer hover:text-blue-600 transition-colors px-1 rounded hover:bg-gray-100 ${
-                    task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-800'
-                  }`}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    startEditingTitle();
-                  }}
-                >
-                  {task.title}
-                </h3>
-              )}
+            {isEditingTitle ? (
+              <input
+                type="text"
+                value={editingTitle}
+                onChange={(e) => setEditingTitle(e.target.value)}
+                className="text-sm font-normal text-gray-800 bg-transparent border border-blue-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                autoFocus
+                onBlur={saveTitle}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    saveTitle();
+                  } else if (e.key === 'Escape') {
+                    cancelEditingTitle();
+                  }
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <h3
+                className={`text-sm font-normal cursor-pointer hover:text-blue-600 transition-colors px-1 py-0.5 rounded hover:bg-gray-100 ${
+                  task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'
+                }`}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  startEditingTitle();
+                }}
+              >
+                {task.title}
+              </h3>
+            )}
 
-              {/* Metadata */}
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                {task.flagged && (
-                  <Flag className="w-3 h-3 text-orange-500" fill="currentColor" />
-                )}
-                
-                {task.dueDate && (
-                  <span
-                    className={`flex items-center gap-1 text-xs ${
-                      isPast(new Date(task.dueDate)) && task.status !== 'completed'
-                        ? 'text-red-500'
-                        : 'text-gray-500'
-                    }`}
-                  >
-                    <Calendar className="w-3 h-3" />
-                    {formatDueDate(new Date(task.dueDate))}
-                  </span>
-                )}
-
-                {task.reminderTime && (
-                  <span className="flex items-center gap-1 text-xs text-gray-500">
-                    <Clock className="w-3 h-3" />
-                    {format(new Date(task.reminderTime), 'h:mm a')}
-                  </span>
-                )}
-
-                {task.recurrence && (
-                  <span className="flex items-center gap-1 text-xs text-gray-500">
-                    <Repeat className="w-3 h-3" />
-                    {task.recurrence}
-                  </span>
-                )}
-
-                {showProject && project && (
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                    {project.name}
-                  </span>
-                )}
-
-                {task.tags.map(tag => (
-                  <span
-                    key={tag.id}
-                    className="flex items-center gap-1 text-xs px-2 py-0.5 rounded"
-                    style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
-                  >
-                    <Hash className="w-3 h-3" />
-                    {tag.name}
-                  </span>
-                ))}
+              {/* Hidden metadata - can be shown on hover or in detailed view */}
+              <div className="hidden">
+                {task.flagged && <Flag className="w-3 h-3 text-orange-500" fill="currentColor" />}
               </div>
-
-              {/* Notes */}
-              {task.notes && (
-                <div className="mt-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowNotes(!showNotes);
-                    }}
-                    className="text-xs text-gray-500 hover:text-gray-700"
-                  >
-                    {showNotes ? 'Hide notes' : 'Show notes'}
-                  </button>
-                  {showNotes && (
-                    <div className="mt-2 p-2 bg-gray-50 rounded text-sm text-gray-700">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {task.notes}
-                      </ReactMarkdown>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -256,32 +210,20 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
             <Edit2 className="w-4 h-4 text-gray-500" />
           </button>
           <button
-            onClick={handleDuplicate}
-            className="p-1 hover:bg-gray-200 rounded transition-colors"
-            title="Duplicate"
-          >
-            <Copy className="w-4 h-4 text-gray-500" />
-          </button>
-          <button
             onClick={handleDelete}
             className="p-1 hover:bg-gray-200 rounded transition-colors"
             title="Delete"
           >
             <Trash2 className="w-4 h-4 text-gray-500" />
           </button>
-          <button
-            className="p-1 hover:bg-gray-200 rounded transition-colors"
-            title="More options"
-          >
-            <MoreHorizontal className="w-4 h-4 text-gray-500" />
-          </button>
         </div>
       </div>
 
-      {/* Subtasks */}
-      {isExpanded && hasSubtasks && (
-        <div className="ml-8 mt-1">
-          {task.subtasks!.map(subtask => (
+      {/* Subtasks - shown when expanded */}
+      {isExpanded && (
+        <div className="mt-1">
+          {/* Existing subtasks */}
+          {hasSubtasks && subtasks.map(subtask => (
             <TaskCard
               key={subtask.id}
               task={subtask}
@@ -289,6 +231,17 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
               level={level + 1}
             />
           ))}
+
+          {/* Add subtask row - aligned with subtask indentation */}
+          <div className="ml-8 mt-1">
+            <button
+              onClick={handleAddSubtask}
+              className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 px-2 py-1 rounded transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+              Add subtask
+            </button>
+          </div>
         </div>
       )}
     </div>

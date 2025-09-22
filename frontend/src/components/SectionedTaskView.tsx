@@ -60,6 +60,9 @@ const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId, hideCo
   const [showSectionDropdown, setShowSectionDropdown] = useState<string | null>(null);
   const sectionDropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
+  // Task input refs for click outside detection
+  const taskInputRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
   const sections = getSectionsByProject(projectId);
   const allUnsectionedTasks = tasks.filter(t => t.projectId === projectId && !t.sectionId);
   const unsectionedTasks = hideCompletedTasks 
@@ -196,22 +199,38 @@ const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId, hideCo
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Handle section dropdown
       if (showSectionDropdown) {
         const dropdownRef = sectionDropdownRefs.current[showSectionDropdown];
         if (dropdownRef && !dropdownRef.contains(event.target as Node)) {
           setShowSectionDropdown(null);
         }
       }
+
+      // Handle task input cancellation
+      if (addingTaskToSection) {
+        const taskInputRef = taskInputRefs.current[addingTaskToSection];
+        if (taskInputRef && !taskInputRef.contains(event.target as Node)) {
+          cancelAddingTask();
+        }
+      }
+
+      if (isAddingToUnsectioned) {
+        const unsectionedInputRef = taskInputRefs.current['unsectioned'];
+        if (unsectionedInputRef && !unsectionedInputRef.contains(event.target as Node)) {
+          cancelAddingTask();
+        }
+      }
     };
 
-    if (showSectionDropdown) {
+    if (showSectionDropdown || addingTaskToSection || isAddingToUnsectioned) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showSectionDropdown]);
+  }, [showSectionDropdown, addingTaskToSection, isAddingToUnsectioned]);
 
   // Inline task creation functions
   const startAddingTaskToSection = (sectionId: string) => {
@@ -367,7 +386,12 @@ const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId, hideCo
             
             {/* Add Task Button or Inline Input */}
             {addingTaskToSection === section.id ? (
-              <div className="flex items-center gap-2 mt-2">
+              <div
+                className="flex items-center gap-2 mt-2"
+                ref={(ref) => {
+                  taskInputRefs.current[section.id] = ref;
+                }}
+              >
                 <input
                   type="text"
                   value={newTaskTitle}
@@ -469,7 +493,12 @@ const SectionedTaskView: React.FC<SectionedTaskViewProps> = ({ projectId, hideCo
                   
                   {/* Add Task to Unsectioned */}
                   {isAddingToUnsectioned ? (
-                    <div className="flex items-center gap-2 mt-2">
+                    <div
+                      className="flex items-center gap-2 mt-2"
+                      ref={(ref) => {
+                        taskInputRefs.current['unsectioned'] = ref;
+                      }}
+                    >
                       <input
                         type="text"
                         value={newTaskTitle}

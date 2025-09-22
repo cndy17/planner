@@ -98,7 +98,7 @@ const SortableProject: React.FC<SortableProjectProps> = ({
       style={style}
       {...attributes}
       {...listeners}
-      className={`group flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+      className={`group flex items-center px-3 py-2 rounded-lg transition-colors ${
         isSelected
           ? 'bg-primary-100 text-primary-700'
           : 'hover:bg-gray-100'
@@ -106,12 +106,12 @@ const SortableProject: React.FC<SortableProjectProps> = ({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <div className="flex-1 flex items-center gap-2 text-left">
+      <div className="flex-1 flex items-center gap-2 text-left min-w-0">
         <button
           onClick={onClick}
-          className="flex items-center gap-2 text-left flex-1"
+          className="flex items-center gap-2 text-left flex-1 min-w-0"
         >
-        <Folder className="w-3 h-3" />
+        <Folder className="w-3 h-3 flex-shrink-0" />
         {isEditing ? (
           <input
             type="text"
@@ -130,7 +130,7 @@ const SortableProject: React.FC<SortableProjectProps> = ({
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span 
+          <span
             className="text-sm cursor-pointer truncate"
             onDoubleClick={(e) => {
               e.stopPropagation();
@@ -144,9 +144,9 @@ const SortableProject: React.FC<SortableProjectProps> = ({
         )}
         </button>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 flex-shrink-0">
         {taskCount > 0 && (
-          <span className="text-xs text-gray-500">{taskCount}</span>
+          <span className="text-xs text-gray-500 w-6 text-right">{taskCount}</span>
         )}
         {isHovered && (
           <button
@@ -473,7 +473,7 @@ const Sidebar: React.FC = () => {
                     <span className="text-sm font-medium">Inbox</span>
                   </div>
                   <span className="text-xs text-gray-500">
-                    {projects.filter(p => !p.areaId).length + 
+                    {projects.filter(p => !p.areaId).length +
                      getTasksByView('anytime').filter(t => !t.projectId).length}
                   </span>
                 </button>
@@ -486,7 +486,7 @@ const Sidebar: React.FC = () => {
                   return (
                     <div key={area.id}>
                       <div
-                        className={`group flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+                        className={`group flex items-center px-3 py-2 rounded-lg transition-colors ${
                           selectedAreaId === area.id
                             ? 'bg-primary-100 text-primary-700'
                             : 'hover:bg-gray-100'
@@ -494,13 +494,13 @@ const Sidebar: React.FC = () => {
                         onMouseEnter={() => setHoveredAreaId(area.id)}
                         onMouseLeave={() => setHoveredAreaId(null)}
                       >
-                        <div className="flex-1 flex items-center gap-2 text-left">
+                        <div className="flex-1 flex items-center gap-2 text-left min-w-0">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleArea(area.id);
                             }}
-                            className="p-1 hover:bg-gray-200 rounded transition-colors"
+                            className="p-1 hover:bg-gray-200 rounded transition-colors flex-shrink-0"
                           >
                             {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                           </button>
@@ -509,9 +509,9 @@ const Sidebar: React.FC = () => {
                               setSelectedAreaId(area.id);
                               setSelectedProjectId(null);
                             }}
-                            className="flex-1 flex items-center gap-2 text-left"
+                            className="flex-1 flex items-center gap-2 text-left min-w-0"
                           >
-                          <Circle className="w-3 h-3" style={{ color: area.color }} fill={area.color} />
+                          <Circle className="w-3 h-3 flex-shrink-0" style={{ color: area.color }} fill={area.color} />
                           {editingAreaId === area.id ? (
                             <input
                               type="text"
@@ -530,8 +530,8 @@ const Sidebar: React.FC = () => {
                               onClick={(e) => e.stopPropagation()}
                             />
                           ) : (
-                            <span 
-                              className="text-sm font-medium cursor-pointer"
+                            <span
+                              className="text-sm font-medium cursor-pointer truncate"
                               onDoubleClick={(e) => {
                                 e.stopPropagation();
                                 startEditingArea(area);
@@ -543,8 +543,8 @@ const Sidebar: React.FC = () => {
                           )}
                           </button>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-gray-500 mr-1">{areaProjects.length}</span>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className="text-xs text-gray-500 w-6 text-right">{areaProjects.length}</span>
                           {hoveredAreaId === area.id && (
                             <>
                               <button

@@ -171,10 +171,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const toggleTaskComplete = async (id: string) => {
     const task = state.tasks.find(t => t.id === id);
-    if (task) {
-      const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-      await updateTask(id, { status: newStatus });
-    }
+    if (!task) return;
+
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+
+    // Function to collect all subtask IDs recursively
+    const collectSubtaskIds = (parentId: string): string[] => {
+      const childTasks = state.tasks.filter(t => t.parentTaskId === parentId);
+      let allSubtaskIds: string[] = [];
+
+      for (const childTask of childTasks) {
+        allSubtaskIds.push(childTask.id);
+        // Recursively collect nested subtasks
+        allSubtaskIds = allSubtaskIds.concat(collectSubtaskIds(childTask.id));
+      }
+
+      return allSubtaskIds;
+    };
+
+    // Update the main task
+    await updateTask(id, { status: newStatus });
+
+    // Get all subtask IDs and update them
+    const allSubtaskIds = collectSubtaskIds(id);
+
+    // Update all subtasks in parallel for better performance
+    const updatePromises = allSubtaskIds
+      .filter(subtaskId => {
+        const subtask = state.tasks.find(t => t.id === subtaskId);
+        return subtask && subtask.status !== newStatus;
+      })
+      .map(subtaskId => updateTask(subtaskId, { status: newStatus }));
+
+    await Promise.all(updatePromises);
   };
 
   const reorderTasks = async (reorderedTasks: Task[]) => {
@@ -495,39 +524,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const nextWeek = new Date(today);
     nextWeek.setDate(nextWeek.getDate() + 7);
 
+    // Filter out subtasks (tasks with parentTaskId) from root-level lists
+    const rootTasks = state.tasks.filter(task => !task.parentTaskId);
+
     switch (view) {
       case 'today':
-        return state.tasks.filter(task => {
+        return rootTasks.filter(task => {
           if (!task.dueDate) return false;
           const dueDate = new Date(task.dueDate);
           return dueDate >= today && dueDate < tomorrow;
         });
       case 'upcoming':
-        return state.tasks.filter(task => {
+        return rootTasks.filter(task => {
           if (!task.dueDate) return false;
           const dueDate = new Date(task.dueDate);
           return dueDate >= today && dueDate < nextWeek;
         });
       case 'anytime':
-        return state.tasks.filter(task => !task.dueDate);
+        return rootTasks.filter(task => !task.dueDate);
       case 'someday':
-        return state.tasks.filter(task => task.status === 'pending' && !task.dueDate);
+        return rootTasks.filter(task => task.status === 'pending' && !task.dueDate);
       case 'logbook':
-        return state.tasks.filter(task => task.status === 'completed');
+        return rootTasks.filter(task => task.status === 'completed');
       case 'calendar':
-        return state.tasks;
+        return rootTasks;
       default:
-        return state.tasks;
+        return rootTasks;
     }
   };
 
   const getTasksByProject = (projectId: string): Task[] => {
-    return state.tasks.filter(task => task.projectId === projectId);
+    // Include all tasks for project view (root tasks + their subtasks will be nested via TaskCard)
+    return state.tasks.filter(task => task.projectId === projectId && !task.parentTaskId);
   };
 
   const getTasksByTag = (tagId: string): Task[] => {
-    return state.tasks.filter(task => 
-      task.tags.some(tag => tag.id === tagId)
+    // Only show root tasks for tag views (subtasks displayed via TaskCard nesting)
+    return state.tasks.filter(task =>
+      !task.parentTaskId && task.tags.some(tag => tag.id === tagId)
     );
   };
 
@@ -536,7 +570,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const getTasksBySection = (sectionId: string): Task[] => {
-    return state.tasks.filter(task => task.sectionId === sectionId);
+    // Only show root tasks for section views (subtasks displayed via TaskCard nesting)
+    return state.tasks.filter(task => task.sectionId === sectionId && !task.parentTaskId);
   };
 
   const getSectionsByProject = (projectId: string): TaskSection[] => {

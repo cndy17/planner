@@ -161,27 +161,95 @@ And much more!"
           <div className="h-full flex flex-col">
             {notes.trim() ? (
               <>
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
-                  <div className="prose prose-sm max-w-none">
+                <div
+                  className="flex-1 overflow-y-auto custom-scrollbar p-4 cursor-pointer"
+                  onDoubleClick={handleStartEditing}
+                  title="Double-click to edit"
+                >
+                  <div className="max-w-none">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        // Customize link rendering to open in new tab
+                        // Headers
+                        h1: ({ node, ...props }) => (
+                          <h1 {...props} className="text-2xl font-bold text-gray-900 mb-4 mt-6 first:mt-0" />
+                        ),
+                        h2: ({ node, ...props }) => (
+                          <h2 {...props} className="text-xl font-bold text-gray-900 mb-3 mt-5 first:mt-0" />
+                        ),
+                        h3: ({ node, ...props }) => (
+                          <h3 {...props} className="text-lg font-semibold text-gray-900 mb-2 mt-4 first:mt-0" />
+                        ),
+                        h4: ({ node, ...props }) => (
+                          <h4 {...props} className="text-base font-semibold text-gray-900 mb-2 mt-3 first:mt-0" />
+                        ),
+                        h5: ({ node, ...props }) => (
+                          <h5 {...props} className="text-sm font-semibold text-gray-900 mb-1 mt-3 first:mt-0" />
+                        ),
+                        h6: ({ node, ...props }) => (
+                          <h6 {...props} className="text-sm font-medium text-gray-700 mb-1 mt-2 first:mt-0" />
+                        ),
+                        // Paragraphs
+                        p: ({ node, ...props }) => (
+                          <p {...props} className="text-gray-700 mb-4 leading-relaxed" />
+                        ),
+                        // Lists
+                        ul: ({ node, ...props }) => (
+                          <ul {...props} className="list-disc pl-6 mb-4 space-y-1" />
+                        ),
+                        ol: ({ node, ...props }) => (
+                          <ol {...props} className="list-decimal pl-6 mb-4 space-y-1" />
+                        ),
+                        li: ({ node, ...props }) => (
+                          <li {...props} className="text-gray-700" />
+                        ),
+                        // Links
                         a: ({ node, ...props }) => (
-                          <a {...props} target="_blank" rel="noopener noreferrer">
+                          <a
+                            {...props}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline"
+                          >
                             {props.children || props.href}
                           </a>
                         ),
-                        // Customize code blocks
+                        // Text formatting
+                        strong: ({ node, ...props }) => (
+                          <strong {...props} className="font-semibold text-gray-900" />
+                        ),
+                        em: ({ node, ...props }) => (
+                          <em {...props} className="italic text-gray-700" />
+                        ),
+                        // Code blocks
                         pre: ({ node, ...props }) => (
-                          <pre {...props} className="bg-gray-100 p-3 rounded-md overflow-x-auto text-sm" />
+                          <pre {...props} className="bg-gray-100 p-4 rounded-md overflow-x-auto text-sm font-mono mb-4 border" />
                         ),
                         code: ({ node, ...props }) => (
-                          <code {...props} className="bg-gray-100 px-1 py-0.5 rounded text-sm" />
+                          <code {...props} className="bg-gray-100 px-2 py-1 rounded text-sm font-mono text-pink-600" />
                         ),
-                        // Customize blockquotes
+                        // Blockquotes
                         blockquote: ({ node, ...props }) => (
-                          <blockquote {...props} className="border-l-4 border-gray-300 pl-4 text-gray-600 italic" />
+                          <blockquote {...props} className="border-l-4 border-blue-500 pl-4 py-2 my-4 text-gray-600 italic bg-blue-50" />
+                        ),
+                        // Horizontal rule
+                        hr: ({ node, ...props }) => (
+                          <hr {...props} className="border-gray-300 my-6" />
+                        ),
+                        // Tables
+                        table: ({ node, ...props }) => (
+                          <div className="overflow-x-auto mb-4">
+                            <table {...props} className="min-w-full border border-gray-200" />
+                          </div>
+                        ),
+                        thead: ({ node, ...props }) => (
+                          <thead {...props} className="bg-gray-50" />
+                        ),
+                        th: ({ node, ...props }) => (
+                          <th {...props} className="px-4 py-2 text-left text-sm font-medium text-gray-900 border-b border-gray-200" />
+                        ),
+                        td: ({ node, ...props }) => (
+                          <td {...props} className="px-4 py-2 text-sm text-gray-700 border-b border-gray-200" />
                         ),
                       }}
                     >
@@ -197,7 +265,11 @@ And much more!"
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center p-6">
+              <div
+                className="flex-1 flex items-center justify-center p-6 cursor-pointer"
+                onDoubleClick={handleStartEditing}
+                title="Double-click to add notes"
+              >
                 <div className="text-center">
                   <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500 text-sm mb-2">No notes yet</p>
