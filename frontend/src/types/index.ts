@@ -14,6 +14,7 @@ export interface Task {
   dueDate?: Date | null;
   reminderTime?: Date | null;
   startDate?: Date | null;
+  plannedDate?: Date | null;
   status: 'pending' | 'completed' | 'cancelled';
   priority?: 'low' | 'medium' | 'high' | null;
   flagged: boolean;

@@ -7,6 +7,7 @@ import TaskListSimple from './TaskListSimple';
 import ProjectView from './ProjectView';
 import AreaView from './AreaView';
 import PlannerView from './PlannerView';
+import DailyPlannerView from './DailyPlannerView';
 import CalendarView from './CalendarView';
 import LogbookView from './LogbookView';
 import QuickEntryModal from './modals/QuickEntryModal';
@@ -160,7 +161,7 @@ const AppLayout: React.FC = () => {
 
     // Kanban Planner View
     if (selectedView === 'planner') {
-      return <PlannerView view='today' hideCompletedTasks={hideCompletedTasks} />;
+      return <DailyPlannerView hideCompletedTasks={hideCompletedTasks} />;
     }
 
     // Calendar View

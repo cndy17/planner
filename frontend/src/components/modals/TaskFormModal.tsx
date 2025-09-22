@@ -26,6 +26,7 @@ const TaskFormModal: React.FC = () => {
   const [dueDate, setDueDate] = useState<string>('');
   const [reminderTime, setReminderTime] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
+  const [plannedDate, setPlannedDate] = useState<string>('');
   const [projectId, setProjectId] = useState<string>('');
   const [sectionId, setSectionId] = useState<string>('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -46,6 +47,7 @@ const TaskFormModal: React.FC = () => {
         setDueDate(editingTask.dueDate ? new Date(editingTask.dueDate).toISOString().split('T')[0] : '');
         setReminderTime(editingTask.reminderTime ? new Date(editingTask.reminderTime).toISOString().slice(0, 16) : '');
         setStartDate(editingTask.startDate ? new Date(editingTask.startDate).toISOString().split('T')[0] : '');
+        setPlannedDate(editingTask.plannedDate ? new Date(editingTask.plannedDate).toISOString().split('T')[0] : '');
         setProjectId(editingTask.projectId || '');
         setSectionId(editingTask.sectionId || '');
         setSelectedTags(editingTask.tags.map(t => t.id));
@@ -81,6 +83,7 @@ const TaskFormModal: React.FC = () => {
       dueDate: dueDate ? new Date(dueDate) : null,
       reminderTime: reminderTime ? new Date(reminderTime) : null,
       startDate: startDate ? new Date(startDate) : null,
+      plannedDate: plannedDate ? new Date(plannedDate) : null,
       priority,
       flagged,
       projectId: projectId || null,
@@ -110,6 +113,7 @@ const TaskFormModal: React.FC = () => {
     setDueDate('');
     setReminderTime('');
     setStartDate('');
+    setPlannedDate('');
     setProjectId('');
     setSectionId('');
     setSelectedTags([]);
@@ -266,11 +270,11 @@ const TaskFormModal: React.FC = () => {
             </div>
 
             {/* Dates Grid */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {/* Start Date */}
               <div>
                 <label className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                  <Calendar className="w-4 h-4" />
+                  <Clock className="w-4 h-4" />
                   Start Date
                 </label>
                 <input
@@ -291,6 +295,20 @@ const TaskFormModal: React.FC = () => {
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+
+              {/* Planned Date */}
+              <div>
+                <label className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                  <Hash className="w-4 h-4" />
+                  Planned Date
+                </label>
+                <input
+                  type="date"
+                  value={plannedDate}
+                  onChange={(e) => setPlannedDate(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>

@@ -192,6 +192,36 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true, level = 0
               </h3>
             )}
 
+              {/* Date information */}
+              {(task.dueDate || task.startDate || task.reminderTime || task.plannedDate) && (
+                <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                  {task.plannedDate && (
+                    <div className="flex items-center gap-1 text-blue-600">
+                      <Hash className="w-3 h-3" />
+                      <span>Planned {formatDueDate(new Date(task.plannedDate))}</span>
+                    </div>
+                  )}
+                  {task.dueDate && (
+                    <div className={`flex items-center gap-1 ${isPast(new Date(task.dueDate)) && task.status !== 'completed' ? 'text-red-500' : ''}`}>
+                      <Calendar className="w-3 h-3" />
+                      <span>Due {formatDueDate(new Date(task.dueDate))}</span>
+                    </div>
+                  )}
+                  {task.startDate && (
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      <span>Start {formatDueDate(new Date(task.startDate))}</span>
+                    </div>
+                  )}
+                  {task.reminderTime && (
+                    <div className="flex items-center gap-1">
+                      <Flag className="w-3 h-3" />
+                      <span>Reminder {format(new Date(task.reminderTime), 'MMM d, h:mm a')}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Hidden metadata - can be shown on hover or in detailed view */}
               <div className="hidden">
                 {task.flagged && <Flag className="w-3 h-3 text-orange-500" fill="currentColor" />}

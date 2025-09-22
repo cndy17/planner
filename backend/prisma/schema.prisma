@@ -45,6 +45,7 @@ model Task {
   dueDate       DateTime?
   reminderTime  DateTime?
   startDate     DateTime?
+  plannedDate   DateTime?
   status        String
   priority      String?
   flagged       Boolean      @default(false)
