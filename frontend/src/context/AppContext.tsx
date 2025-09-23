@@ -138,10 +138,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateTask = async (id: string, updates: Partial<Task>) => {
     try {
-      console.log('updateTask called:', { id, updates });
-      const originalTask = state.tasks.find(t => t.id === id);
-      console.log('Original task before update:', originalTask);
-
+      console.log('AppContext: Updating task', id, 'with:', updates);
       const response = await fetch(`${API_URL}/tasks/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -153,7 +150,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       const updatedTask = await response.json();
-      console.log('Updated task from backend:', updatedTask);
+      console.log('AppContext: Got updated task from API:', { title: updatedTask.title, plannedDate: updatedTask.plannedDate });
 
       setState(prev => ({
         ...prev,
@@ -161,8 +158,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           task.id === id ? updatedTask : task
         ),
       }));
-
-      console.log('State updated successfully');
+      console.log('AppContext: Updated local state');
     } catch (error) {
       console.error('Failed to update task:', error);
     }

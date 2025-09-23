@@ -12,12 +12,15 @@ import {
   ArrowRight,
   X,
   Eye,
-  EyeOff
+  EyeOff,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import { format, addDays, subDays, isSameDay, isToday, isPast, isTomorrow } from 'date-fns';
 import {
   DndContext,
   closestCenter,
+  closestCorners,
   PointerSensor,
   TouchSensor,
   useSensor,
@@ -98,6 +101,8 @@ interface UnscheduledTasksColumnProps {
   onSearchChange: (query: string) => void;
   onScheduleTask: (task: Task) => void;
   hideCompletedTasks?: boolean;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
 const UnscheduledTasksColumn: React.FC<UnscheduledTasksColumnProps> = ({
@@ -105,7 +110,9 @@ const UnscheduledTasksColumn: React.FC<UnscheduledTasksColumnProps> = ({
   searchQuery,
   onSearchChange,
   onScheduleTask,
-  hideCompletedTasks = false
+  hideCompletedTasks = false,
+  isCollapsed,
+  onToggleCollapse
 }) => {
   const { isOver, setNodeRef } = useDroppable({
     id: 'unscheduled-column',
@@ -128,6 +135,23 @@ const UnscheduledTasksColumn: React.FC<UnscheduledTasksColumnProps> = ({
     return true;
   });
 
+  if (isCollapsed) {
+    return (
+      <div className="w-12 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col items-center py-3">
+        <button
+          onClick={onToggleCollapse}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors mb-2"
+          title="Expand unscheduled tasks"
+        >
+          <PanelLeftOpen className="w-5 h-5 text-gray-600" />
+        </button>
+        <div className="text-xs text-gray-500 transform -rotate-90 whitespace-nowrap mt-4">
+          {filteredTasks.length} tasks
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-80 flex-shrink-0 bg-white border-r border-gray-200">
       <div className="bg-gray-100 p-3 border-b border-gray-200">
@@ -135,9 +159,18 @@ const UnscheduledTasksColumn: React.FC<UnscheduledTasksColumnProps> = ({
           <h3 className="font-semibold text-sm text-gray-700">
             Unscheduled Tasks
           </h3>
-          <span className="text-xs bg-gray-200 px-2 py-1 rounded-full text-gray-600">
-            {filteredTasks.length}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs bg-gray-200 px-2 py-1 rounded-full text-gray-600">
+              {filteredTasks.length}
+            </span>
+            <button
+              onClick={onToggleCollapse}
+              className="p-1 hover:bg-gray-200 rounded transition-colors"
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose className="w-4 h-4 text-gray-600" />
+            </button>
+          </div>
         </div>
 
         {/* Search Bar */}
@@ -220,26 +253,40 @@ const DayColumn: React.FC<DayColumnProps> = ({
 
   const displayTasks = tasks.filter(task => {
     if (task.plannedDate) {
+      // Ensure we're working with a proper Date object
       const plannedDate = new Date(task.plannedDate);
-      const isSame = isSameDay(plannedDate, date);
-      if (format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')) {
-        console.log('Today column filtering:', {
-          taskId: task.id,
-          taskTitle: task.title,
-          plannedDate: task.plannedDate,
-          parsedPlannedDate: plannedDate,
-          columnDate: date,
-          isSameDay: isSame
-        });
+      // Check if the date is valid
+      if (isNaN(plannedDate.getTime())) {
+        console.warn('DayColumn: Invalid plannedDate for task:', task.id, task.plannedDate);
+        return false;
       }
-      return isSame;
+      const matches = isSameDay(plannedDate, date);
+      if (matches) {
+        console.log('DayColumn: Task', task.title, 'matches date', format(date, 'yyyy-MM-dd'), 'planned:', format(plannedDate, 'yyyy-MM-dd'));
+      }
+      return matches;
     }
     // For today's column, also show tasks due today
     if (isToday && task.dueDate) {
-      return isSameDay(new Date(task.dueDate), date);
+      const dueDate = new Date(task.dueDate);
+      if (isNaN(dueDate.getTime())) {
+        console.warn('DayColumn: Invalid dueDate for task:', task.id, task.dueDate);
+        return false;
+      }
+      return isSameDay(dueDate, date);
     }
     return false;
   });
+
+  // Debug log for empty columns (only when there are tasks with planned dates to avoid spam)
+  if (displayTasks.length === 0 && tasks.some(t => t.plannedDate)) {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const tasksWithPlannedDates = tasks.filter(t => t.plannedDate).map(t => ({
+      title: t.title,
+      plannedDate: t.plannedDate ? format(new Date(t.plannedDate), 'yyyy-MM-dd') : 'none'
+    }));
+    console.log(`DayColumn ${dateStr}: No tasks displayed. Tasks with planned dates:`, tasksWithPlannedDates);
+  }
 
   const formatDateHeader = (date: Date) => {
     if (isToday) return 'Today';
@@ -254,7 +301,7 @@ const DayColumn: React.FC<DayColumnProps> = ({
   };
 
   return (
-    <div className="flex-none w-64 sm:w-72 md:w-80 lg:w-64 xl:w-72 2xl:w-80">
+    <div className="h-full w-full border-r border-gray-200 bg-white">
       <div className={`${getDateStyle()} p-3 border-b`}>
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm">
@@ -323,6 +370,8 @@ const DailyPlannerView: React.FC<DailyPlannerViewProps> = ({ hideCompletedTasks:
   const [selectedTaskForScheduling, setSelectedTaskForScheduling] = useState<Task | null>(null);
   const [hideCompletedTasks, setHideCompletedTasks] = useState(initialHideCompleted);
   const [quickFind, setQuickFind] = useState('');
+  const [isUnscheduledCollapsed, setIsUnscheduledCollapsed] = useState(false);
+  const [showAllDays, setShowAllDays] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -338,8 +387,9 @@ const DailyPlannerView: React.FC<DailyPlannerViewProps> = ({ hideCompletedTasks:
     })
   );
 
-  // Generate days to show (today + next 6 days = week view)
-  const days = Array.from({ length: 7 }, (_, i) => addDays(currentDate, i));
+  // Generate days to show (5 days by default, 7 days when expanded)
+  const numberOfDays = showAllDays ? 7 : 5;
+  const days = Array.from({ length: numberOfDays }, (_, i) => addDays(currentDate, i));
 
   // Get unscheduled tasks (no plannedDate and no dueDate)
   const getUnscheduledTasks = (): Task[] => {
@@ -396,28 +446,150 @@ const DailyPlannerView: React.FC<DailyPlannerViewProps> = ({ hideCompletedTasks:
   };
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
+    const taskId = event.active.id as string;
+    console.log('DailyPlanner: Drag started for task:', taskId);
+    setActiveId(taskId);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
 
-    if (!over) return;
+    if (!over) {
+      console.log('DailyPlanner: No drop target');
+      return;
+    }
 
     const taskId = active.id as string;
     const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
+    if (!task) {
+      console.log('DailyPlanner: Task not found for ID:', taskId);
+      return;
+    }
+
+    console.log('DailyPlanner: Drag ended - Task:', task.title, 'Drop target:', over.id, 'Type:', typeof over.id);
+
+    // Debug: Show all available droppable IDs for context
+    console.log('DailyPlanner: Available drop zones:');
+    console.log('  - unscheduled-column');
+    days.forEach((day, index) => {
+      const dayId = format(day, 'yyyy-MM-dd');
+      const dayName = index === 0 && isToday(day) ? 'Today' :
+                     index === 1 && isTomorrow(day) ? 'Tomorrow' :
+                     format(day, 'EEE MMM d');
+      console.log(`  - ${dayId} (${dayName})`);
+    });
 
     // If dropped on unscheduled column
     if (over.id === 'unscheduled-column') {
-      await updateTask(taskId, { plannedDate: null });
+      console.log('DailyPlanner: Clearing planned date for task:', task.title);
+      try {
+        await updateTask(taskId, { plannedDate: null });
+        console.log('DailyPlanner: Successfully cleared planned date');
+      } catch (error) {
+        console.error('DailyPlanner: Failed to clear planned date:', error);
+      }
+      return;
     }
-    // If dropped on a date column
-    else {
-      const newPlannedDate = new Date(over.id as string);
-      await updateTask(taskId, { plannedDate: newPlannedDate });
+
+    const dropTargetId = over.id as string;
+
+    // Check if dropped on a date column (yyyy-MM-dd format)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dropTargetId)) {
+      console.log('DailyPlanner: Dropped on date column:', dropTargetId);
+
+      // Debug: Show current date context
+      const actualToday = new Date();
+      const actualTomorrow = addDays(actualToday, 1);
+      console.log('DailyPlanner: Actual today:', format(actualToday, 'yyyy-MM-dd'));
+      console.log('DailyPlanner: Actual tomorrow:', format(actualTomorrow, 'yyyy-MM-dd'));
+      console.log('DailyPlanner: Current view date:', format(currentDate, 'yyyy-MM-dd'));
+      console.log('DailyPlanner: Days array:', days.map(d => format(d, 'yyyy-MM-dd')));
+
+      const newPlannedDate = new Date(dropTargetId + 'T00:00:00');
+
+      if (isNaN(newPlannedDate.getTime())) {
+        console.error('DailyPlanner: Invalid date created from:', dropTargetId);
+        return;
+      }
+
+      console.log('DailyPlanner: Setting planned date for task:', task.title, 'from', task.plannedDate, 'to:', newPlannedDate.toISOString());
+
+      try {
+        await updateTask(taskId, { plannedDate: newPlannedDate });
+        console.log('DailyPlanner: Successfully updated task planned date');
+      } catch (error) {
+        console.error('DailyPlanner: Failed to update task:', error);
+      }
+      return;
     }
+
+    // Check if dropped on another task (UUID format) - this means reordering within a day
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidPattern.test(dropTargetId)) {
+      console.log('DailyPlanner: Dropped on another task (reordering):', dropTargetId);
+
+      // Find the target task to get its planned date
+      const targetTask = tasks.find(t => t.id === dropTargetId);
+      console.log('DailyPlanner: Found target task:', targetTask ? targetTask.title : 'NOT FOUND');
+      console.log('DailyPlanner: Target task plannedDate:', targetTask?.plannedDate);
+      console.log('DailyPlanner: Target task dueDate:', targetTask?.dueDate);
+      if (targetTask && targetTask.plannedDate) {
+        console.log('DailyPlanner: Moving task to same day as target task:', targetTask.plannedDate);
+
+        try {
+          await updateTask(taskId, { plannedDate: new Date(targetTask.plannedDate) });
+          console.log('DailyPlanner: Successfully moved task to same day');
+        } catch (error) {
+          console.error('DailyPlanner: Failed to move task:', error);
+        }
+      } else if (targetTask && !targetTask.plannedDate) {
+        // Check if target task has a due date for today - if so, set planned date to today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        console.log('DailyPlanner: Target task has no plannedDate:', targetTask.title);
+        console.log('DailyPlanner: Target task dueDate:', targetTask.dueDate);
+        console.log('DailyPlanner: Today date for comparison:', today.toISOString());
+
+        if (targetTask.dueDate) {
+          const targetDueDate = new Date(targetTask.dueDate);
+          const isTodayMatch = isSameDay(targetDueDate, today);
+          console.log('DailyPlanner: Due date comparison - targetDueDate:', targetDueDate.toISOString(), 'isToday:', isTodayMatch);
+
+          if (isTodayMatch) {
+            console.log('DailyPlanner: Target task due today, setting planned date to today');
+            try {
+              await updateTask(taskId, { plannedDate: today });
+              console.log('DailyPlanner: Successfully set planned date to today');
+            } catch (error) {
+              console.error('DailyPlanner: Failed to set planned date to today:', error);
+            }
+            return;
+          }
+        }
+
+        // Target task is in unscheduled column, so move this task there too
+        console.log('DailyPlanner: Target task is unscheduled, clearing planned date');
+        try {
+          await updateTask(taskId, { plannedDate: null });
+          console.log('DailyPlanner: Successfully cleared planned date');
+        } catch (error) {
+          console.error('DailyPlanner: Failed to clear planned date:', error);
+        }
+      } else {
+        console.log('DailyPlanner: Target task not found, ignoring drop');
+      }
+      return;
+    }
+
+    // If we get here, it's an unknown drop target
+    console.warn('DailyPlanner: Unknown drop target format:', dropTargetId, 'Length:', dropTargetId.length, 'Contains dash:', dropTargetId.includes('-'));
+    console.log('DailyPlanner: Available drop zones should be:', [
+      'unscheduled-column',
+      'Date format (yyyy-MM-dd): e.g., 2025-09-23',
+      'Task UUIDs: e.g., 36 char strings with dashes'
+    ]);
   };
 
   const moveOverdueTasksToToday = async () => {
@@ -444,7 +616,7 @@ const DailyPlannerView: React.FC<DailyPlannerViewProps> = ({ hideCompletedTasks:
   const unscheduledTasks = getUnscheduledTasks();
   const overdueTasks = getOverdueTasks();
   const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
-  const todayTasks = tasks.filter(task => {
+  const allTasks = tasks.filter(task => {
     if (hideCompletedTasks && task.status === 'completed') return false;
     if (quickFind) {
       const query = quickFind.toLowerCase();
@@ -519,6 +691,30 @@ const DailyPlannerView: React.FC<DailyPlannerViewProps> = ({ hideCompletedTasks:
               >
                 Today
               </button>
+
+              {/* Days Toggle */}
+              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setShowAllDays(false)}
+                  className={`px-2 py-1 text-xs rounded transition-colors ${
+                    !showAllDays
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  5 Days
+                </button>
+                <button
+                  onClick={() => setShowAllDays(true)}
+                  className={`px-2 py-1 text-xs rounded transition-colors ${
+                    showAllDays
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  7 Days
+                </button>
+              </div>
             </div>
 
             {/* Right Side - Quick Actions */}
@@ -587,19 +783,30 @@ const DailyPlannerView: React.FC<DailyPlannerViewProps> = ({ hideCompletedTasks:
             onSearchChange={setSearchQuery}
             onScheduleTask={handleScheduleTask}
             hideCompletedTasks={hideCompletedTasks}
+            isCollapsed={isUnscheduledCollapsed}
+            onToggleCollapse={() => setIsUnscheduledCollapsed(!isUnscheduledCollapsed)}
           />
 
-          {/* Daily Columns - Horizontally Scrollable */}
+          {/* Daily Columns - Responsive Layout */}
           <div className="flex-1 overflow-x-auto overflow-y-hidden">
-            <div className="flex h-full min-w-max gap-px bg-gray-200">
+            <div className="flex h-full min-w-max">
               {days.map((day, index) => (
-                <DayColumn
+                <div
                   key={format(day, 'yyyy-MM-dd')}
-                  date={day}
-                  tasks={todayTasks}
-                  isToday={index === 0 && isToday(day)}
-                  onAddTask={handleAddTask}
-                />
+                  className="flex-shrink-0"
+                  style={{
+                    width: isUnscheduledCollapsed
+                      ? `calc((100vw - 48px) / ${Math.min(numberOfDays, 5)})`
+                      : `calc((100vw - 320px) / ${Math.min(numberOfDays, 5)})`
+                  }}
+                >
+                  <DayColumn
+                    date={day}
+                    tasks={allTasks}
+                    isToday={index === 0 && isToday(day)}
+                    onAddTask={handleAddTask}
+                  />
+                </div>
               ))}
             </div>
           </div>
