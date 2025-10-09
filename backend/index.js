@@ -222,6 +222,22 @@ app.put('/tasks/:id', async (req, res) => {
       include: { tags: true, project: true, subtasks: true }
     });
     console.log(`Task updated:`, task.title, 'order:', task.order);
+
+    // Auto-update project status to "In Progress" when task is completed
+    if (taskData.status === 'completed' && task.projectId) {
+      const project = await prisma.project.findUnique({
+        where: { id: task.projectId }
+      });
+
+      if (project && project.status === 'Not Started') {
+        await prisma.project.update({
+          where: { id: task.projectId },
+          data: { status: 'In Progress' }
+        });
+        console.log(`Project ${project.name} status updated to "In Progress"`);
+      }
+    }
+
     res.json(task);
   } catch (error) {
     console.error('Error updating task:', error);
